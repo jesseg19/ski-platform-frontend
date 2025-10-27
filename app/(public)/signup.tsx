@@ -1,3 +1,4 @@
+import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
@@ -11,27 +12,93 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../auth/AuthContext';
+
+
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  statusCodes
+} from '@react-native-google-signin/google-signin';
 
 const PRIMARY_COLOR = '#8CD62B';
 const BACKGROUND_COLOR = '#F9F9F9';
 const BORDER_COLOR = '#E0E0E0';
 const LOGO_SOURCE = require('@/assets/images/logo.png'); // IMPORTANT: Update this path!
 
+GoogleSignin.configure({
+  webClientId: '789488486637-uhm44ifm2hamqo3c75h3rmunj35a3d2f.apps.googleusercontent.com',
+
+  // iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+
+  scopes: ['https://www.googleapis.com/auth/userinfo.email', 'profile'],
+});
+
 // --- Types ---
 type AuthMode = 'login' | 'signup';
 
-// --- Auth Component ---
-
-const AuthScreen = () => {
+export default function AuthScreen() {
   const [mode, setMode] = useState<AuthMode>('signup');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { signIn } = useAuth();
+  const { signIn: localSignIn } = useAuth();
 
   const isLogin = mode === 'login';
+
+
+  // Google signin
+  const handleGoogleSignIn = async () => {
+
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      console.log('Google Sign-In Response:', response);
+
+      const idToken = response.data?.idToken; // Your existing code
+      if (idToken) {
+        console.log('Google Sign-In successful. Sending token to backend...');
+
+        const backendResponse = await api.post('/api/auth/google-auth', {
+          idToken: idToken,
+        });
+
+        const { token: jwtToken, username: userName, id: userId } = backendResponse.data;
+
+        localSignIn(jwtToken, { username: userName, id: userId });
+        Alert.alert('Success', 'Google Sign-In successful!');
+
+      } else {
+        Alert.alert('Cancelled', 'Google Sign-In was cancelled or failed to get ID token.');
+      }
+    } catch (error) {
+      if (isErrorWithCode(error)) {
+        switch (error.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            console.log('User cancelled the login flow');
+            break;
+          case statusCodes.IN_PROGRESS:
+            console.log('Operation (e.g., sign in) already in progress');
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            Alert.alert('Error', 'Google Play services not available or outdated.');
+            break;
+          default:
+            console.error('Google Sign-In Error:', error.code, error.message);
+            Alert.alert('Error', `Google Sign-In failed: ${error.message}`);
+        }
+      } else if (axios.isAxiosError(error)) {
+        console.error('Backend Auth Error:', error.response?.data || error.message);
+        Alert.alert('Error', `Authentication failed: ${error.response?.data?.message || 'Server error'}`);
+      } else {
+        console.error('Unknown Sign-In Error:', String(error));
+        Alert.alert('Error', 'An unknown error occurred during sign-in.');
+      }
+    }
+  };
+
+
 
   const handleAuth = async () => {
     if (isLogin) {
@@ -79,8 +146,11 @@ const AuthScreen = () => {
   };
 
   const socialLogin = (provider: 'google' | 'facebook') => {
-    Alert.alert('Social Login', `Signing in with ${provider}...`);
-    // Here you would integrate the GoogleSignin and AppleAuth logic
+    if (provider === 'google') {
+      handleGoogleSignIn(); // Call the new function
+    } else {
+      Alert.alert('Social Login', `Signing in with ${provider} is not yet implemented.`);
+    }
   };
 
   const renderLogoSection = () => (
@@ -357,5 +427,3 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
-
-export default AuthScreen;
