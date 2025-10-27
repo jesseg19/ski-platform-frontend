@@ -1,0 +1,109 @@
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { CustomButton } from './CustomButton';
+import { LetterDisplay } from './LetterDisplay';
+
+interface GameRoundActionsProps {
+    playerName: string;
+    lettersEarned: number;
+    playerAction: 'land' | 'fail' | null;
+    lastTryPlayer: string | null;
+    gameStatus: 'playing' | 'gameOver';
+    getActionDisabled: (player: string) => boolean;
+    handlePlayerAction: (player: string, action: 'land' | 'fail') => void;
+    handleLastTryAction: (action: 'land' | 'fail') => Promise<void>;
+}
+
+// Stylesheet for Main Game View (only player-related styles needed here)
+const mainStyles = StyleSheet.create({
+    playerContainer: {
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 20,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    playerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.inputBorder,
+    },
+    playerNameText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: Colors.darkText,
+    },
+    playerActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 15,
+    },
+});
+
+export const GameRoundActions: React.FC<GameRoundActionsProps> = ({
+    playerName,
+    lettersEarned,
+    playerAction,
+    lastTryPlayer,
+    gameStatus,
+    getActionDisabled,
+    handlePlayerAction,
+    handleLastTryAction,
+}) => {
+    const isPlayerOnLastTry = lastTryPlayer === playerName;
+    const isGameOver = gameStatus === 'gameOver';
+
+    const renderActionButtons = () => {
+        if (isPlayerOnLastTry) {
+            return (
+                <>
+                    <CustomButton title='✅ LAND (2nd Try)' onPress={() => handleLastTryAction('land')} isPrimary={true} disabled={isGameOver} style={{ flex: 1, marginRight: 8 }} />
+                    <CustomButton title='❌ FAIL (Game Over)' onPress={() => handleLastTryAction('fail')} isPrimary={false} disabled={isGameOver} style={{ flex: 1 }} />
+                </>
+            );
+        }
+
+        const disabled = getActionDisabled(playerName);
+        return (
+            <>
+                <CustomButton
+                    title={`✅ Land ${playerAction === 'land' ? ' (Voted)' : ''}`}
+                    onPress={() => handlePlayerAction(playerName, 'land')}
+                    isPrimary={true}
+                    disabled={disabled || playerAction === 'fail'}
+                    style={{ flex: 1, marginRight: 8 }}
+                />
+                <CustomButton
+                    title={`❌ Fail ${playerAction === 'fail' ? ' (Voted)' : ''}`}
+                    onPress={() => handlePlayerAction(playerName, 'fail')}
+                    isPrimary={false}
+                    disabled={disabled || playerAction === 'land'}
+                    style={{ flex: 1 }}
+                />
+            </>
+        );
+    };
+
+    return (
+        <ThemedView style={mainStyles.playerContainer}>
+            <View style={mainStyles.playerHeader}>
+                <ThemedText style={mainStyles.playerNameText}>{playerName}</ThemedText>
+                <LetterDisplay lettersEarned={lettersEarned} />
+            </View>
+            <View style={mainStyles.playerActions}>
+                {renderActionButtons()}
+            </View>
+        </ThemedView>
+    );
+};

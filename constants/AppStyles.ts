@@ -1,0 +1,420 @@
+import { Dimensions, StyleSheet } from 'react-native';
+import { Colors } from './theme';
+
+const { width } = Dimensions.get('window');
+
+// --- Reusable Sizing Constants ---
+const SPACING = 15;
+const BORDER_RADIUS = 12;
+const BUTTON_HEIGHT = 60;
+const BUTTON_WIDTH = 120;
+const FONT_SIZE_LARGE = 24;
+const FONT_SIZE_HUGE = 36;
+
+export const AppStyles = StyleSheet.create({
+    // --- Layout/Container Styles ---
+    screenPadding: {
+        padding: SPACING,
+    },
+    card: {
+        padding: SPACING,
+        borderRadius: BORDER_RADIUS,
+        marginVertical: SPACING / 2,
+    },
+
+    // --- Game-Specific Styles for 1v1.tsx ---
+    playerContainerLarge: {
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        alignItems: 'stretch',
+        padding: SPACING,
+        marginHorizontal: SPACING / 2,
+        marginTop: SPACING,
+        borderRadius: BORDER_RADIUS,
+        borderWidth: 2,
+        height: 220,
+    },
+    playerNameText: {
+        fontSize: FONT_SIZE_LARGE,
+        fontWeight: 'bold',
+        marginBottom: SPACING / 2,
+    },
+    actionButtonsGroup: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 25,
+        width: width * 0.4,
+        alignSelf: 'center',
+        marginTop: SPACING,
+    },
+
+    // Custom button style (since RN Button component is limited in styling)
+    actionButtonBase: {
+        borderRadius: BORDER_RADIUS / 2,
+        height: BUTTON_HEIGHT,
+        width: BUTTON_WIDTH,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    letterDisplay: {
+        fontSize: 48,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginVertical: SPACING,
+    },
+
+
+    // --- Text Styles (Can be combined with ThemedText) ---
+    titleText: {
+        fontSize: FONT_SIZE_HUGE,
+        fontWeight: '900',
+    },
+    subtitleText: {
+        fontSize: FONT_SIZE_LARGE,
+        fontWeight: '600',
+    }
+});
+
+// --- Stylesheet for Main Game View ---
+export const mainStyles = StyleSheet.create({
+    fullScreen: {
+        flex: 1,
+        backgroundColor: Colors.lightBlue,
+    },
+    mainContainer: {
+        flex: 1,
+        paddingTop: 50,
+    },
+    backgroundImage: {
+        flex: 1,
+        width: '100%',
+        height: '120%',
+        paddingTop: 50, // To account for safe areas and notches
+    },
+    scrollViewContent: {
+        paddingTop: 50,
+        paddingHorizontal: 15,
+        paddingBottom: 40,
+    },
+    statusCard: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: Colors.white,
+        borderRadius: 15,
+        padding: 15,
+        marginBottom: 10,
+        elevation: 2,
+    },
+    statusTitle: {
+        fontSize: 18,
+        color: Colors.darkText,
+    },
+    callSetButton: {
+        backgroundColor: Colors.darkBlue,
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 10,
+    },
+    callSetButtonText: {
+        color: Colors.white,
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    trickDisplayCard: {
+        backgroundColor: Colors.white,
+        borderRadius: 15,
+        padding: 15,
+        marginBottom: 15,
+        elevation: 2,
+        alignItems: 'center',
+    },
+    trickLabel: {
+        fontSize: 14,
+        color: Colors.textGrey,
+    },
+    trickValue: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: Colors.darkBlue,
+        textAlign: 'center',
+        marginTop: 5,
+    },
+    messageCard: {
+        backgroundColor: Colors.lightBlue,
+        borderRadius: 15,
+        padding: 15,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: Colors.inputBorder,
+    },
+    messageText: {
+        fontSize: 16,
+        textAlign: 'center',
+        color: Colors.darkText,
+    },
+    playerContainer: {
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 20,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    playerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.inputBorder,
+    },
+    playerNameText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: Colors.darkText,
+    },
+    playerActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 15,
+    },
+    gameOverCard: {
+        backgroundColor: Colors.danger,
+        borderRadius: 15,
+        padding: 15,
+        marginBottom: 10,
+        alignItems: 'center',
+    },
+    backButtonContainer: {
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    backButtonText: {
+        fontSize: 14,
+        color: Colors.textGrey,
+        textDecorationLine: 'underline',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: Colors.overlay,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        padding: 25,
+        width: '90%',
+        maxWidth: 400,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 8,
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: Colors.darkBlue,
+        marginBottom: 15,
+    },
+    modalMessage: {
+        fontSize: 16,
+        color: Colors.textGrey,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+
+});
+
+// --- Stylesheet for Letter Display ---
+export const letterStyles = StyleSheet.create({
+    container: {
+        flexDirection: 'row',
+        marginLeft: 10,
+    },
+    box: {
+        width: 35,
+        height: 35,
+        marginHorizontal: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: Colors.inputBorder,
+    },
+    boxBlue: {
+        backgroundColor: Colors.darkBlue, // Blue for available
+    },
+    boxRed: {
+        backgroundColor: Colors.danger, // Red for earned
+    },
+    text: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 20,
+    },
+});
+
+// --- Stylesheet for Trick Call Modal ---
+export const trickModalStyles = StyleSheet.create({
+    centeredView: {
+        flex: 1,
+        backgroundColor: Colors.overlay,
+        justifyContent: 'center',
+    },
+    scrollViewContent: {
+        paddingVertical: 50,
+        paddingHorizontal: 20,
+    },
+    modalView: {
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        padding: 25,
+        width: '100%',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 8,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 15,
+        right: 15,
+        zIndex: 10,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: Colors.darkBlue,
+        marginBottom: 5,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: Colors.textGrey,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    summaryContainer: {
+        width: '100%',
+        backgroundColor: Colors.lightBlue,
+        borderRadius: 10,
+        padding: 15,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: Colors.inputBorder,
+    },
+    summaryText: {
+        fontSize: 14,
+        color: Colors.textGrey,
+        marginBottom: 5,
+    },
+    currentTrick: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: Colors.darkText,
+    }
+});
+
+// --- Stylesheet for Opponent Search Modal (Custom Button only, remaining styles assumed from previous step) ---
+export const modalStyles = StyleSheet.create({
+    // ... (Keep existing modal styles from the previous response) ...
+    centeredView: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.overlay,
+    },
+    modalView: {
+        margin: 20,
+        backgroundColor: Colors.white,
+        borderRadius: 20,
+        padding: 25,
+        alignItems: 'center',
+        width: '90%',
+        maxWidth: 400,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 8,
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 15,
+        right: 15,
+        zIndex: 10,
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: Colors.darkBlue,
+        marginBottom: 25,
+    },
+    playerInfo: {
+        width: '100%',
+        marginBottom: 10,
+    },
+    playerLabel: {
+        fontSize: 14,
+        color: Colors.textGrey,
+        fontWeight: '600',
+        marginBottom: 5,
+    },
+    playerUsername: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: Colors.darkText,
+        backgroundColor: Colors.lightBlue,
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: Colors.inputBorder,
+    },
+    buttonContainer: {
+        width: '100%',
+        marginTop: 20,
+        gap: 10,
+    },
+    customButton: {
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+    },
+    primaryButton: {
+        backgroundColor: Colors.greenButton,
+
+    },
+    secondaryButton: {
+        backgroundColor: Colors.white,
+        borderWidth: 1,
+        borderColor: Colors.textGrey,
+    },
+    primaryButtonText: {
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    secondaryButtonText: {
+        color: Colors.textGrey,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    disabledButton: {
+        opacity: 0.5,
+    }
+})

@@ -1,29 +1,50 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// --- New Ski-Themed Palette ---
+const SKI_PRIMARY_BLUE = '#007AFF'; // A bright, energetic blue (like fresh snow or sky)
+const SKI_ACCENT_ORANGE = '#FF9500'; // A high-contrast orange for buttons/accents (like safety gear)
+const SKI_DANGER_RED = '#FF3B30';   // Used for fails/errors
+const SKI_SUCCESS_GREEN = '#34C759'; // Used for lands/success
+const SKI_DARK_GRAY = '#1C1C1E';    // Near-black for dark mode background
+const SKI_LIGHT_GRAY = '#EFEFF4';   // Off-white for light mode background
+
 
 export const Colors = {
+  greenButton: '#85E34A',
+  darkBlue: '#406080',
+  textGrey: '#555',
+  darkText: '#333',
+  white: '#FFFFFF',
+  lightBlue: '#F0F8FF', // Light background/container color
+  inputBorder: '#D0E0F0',
+  overlay: 'rgba(0, 0, 0, 0.4)',
+  danger: '#E74C3C',
+  success: '#85E34A',
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: SKI_DARK_GRAY,
+    background: SKI_LIGHT_GRAY,
+    tint: SKI_PRIMARY_BLUE, // Main interactive color
+    icon: '#8E8E93',
+    tabIconDefault: '#8E8E93',
+    tabIconSelected: SKI_PRIMARY_BLUE,
+    // New specific colors
+    primary: SKI_PRIMARY_BLUE,
+    accent: SKI_ACCENT_ORANGE,
+    danger: SKI_DANGER_RED,
+    success: SKI_SUCCESS_GREEN,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
+    text: SKI_LIGHT_GRAY,
+    background: SKI_DARK_GRAY,
+    tint: SKI_ACCENT_ORANGE, // High-contrast for dark mode
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    tabIconSelected: SKI_ACCENT_ORANGE,
+    // New specific colors
+    primary: SKI_PRIMARY_BLUE,
+    accent: SKI_ACCENT_ORANGE,
+    danger: SKI_DANGER_RED,
+    success: SKI_SUCCESS_GREEN,
   },
 };
 

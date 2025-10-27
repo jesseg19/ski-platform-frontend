@@ -1,142 +1,151 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useAuth } from '@/auth/AuthContext';
+import api from '@/auth/axios';
+import React, { useEffect, useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// Import your design components (ThemedView, etc.)
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+interface FeedGame {
+  gameId: number;
+  datePlayed: string; // Use string and format in component
+  friendUsername: string;
+  opponentUsername: string;
+  friendFinalLetters: number;
+  opponentFinalLetters: number;
+  likeCount: number;
+  commentCount: number;
+  viewerHasLiked: boolean;
+}
+
+const GameFeedItem: React.FC<{ game: FeedGame, onToggleLike: (id: number) => void }> = ({ game, onToggleLike }) => {
+  // Display logic for a single game post
+  const winnerDisplay = game.friendFinalLetters > game.opponentFinalLetters ?
+    game.opponentUsername : game.friendUsername; // S, K, I... are 0, 1, 2, 3
+  const scoreText = `${game.friendUsername} (${game.friendFinalLetters}) vs ${game.opponentUsername} (${game.opponentFinalLetters})`;
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.title}>{game.friendUsername} played a game!</Text>
+      <Text style={styles.subtitle}>Winner: {winnerDisplay}</Text>
+      <Text style={styles.stats}>{scoreText}</Text>
+
+      <View style={styles.actions}>
+        <TouchableOpacity onPress={() => onToggleLike(game.gameId)}>
+          <Text style={{ color: game.viewerHasLiked ? 'blue' : 'gray' }}>
+            {game.viewerHasLiked ? '❤️ Liked' : '🤍 Like'} ({game.likeCount})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => {/* Navigate to Game Details */ }}>
+          <Text style={styles.actionText}>💬 Comments ({game.commentCount})</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
 
 export default function HomeScreen() {
+  const { user } = useAuth();
+  const [feedData, setFeedData] = useState<FeedGame[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchFeed = async () => {
+    if (!user) return;
+    try {
+      const response = await api.get('/api/feed/games');
+      setFeedData(response.data);
+    } catch (error) {
+      console.error('Failed to fetch friend feed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleLike = async (gameId: number) => {
+    try {
+      await api.post(`/api/feed/${gameId}/like`);
+
+      // Optimistically update the UI
+      setFeedData(prevData => prevData.map(game => {
+        if (game.gameId === gameId) {
+          const newLiked = !game.viewerHasLiked;
+          return {
+            ...game,
+            viewerHasLiked: newLiked,
+            likeCount: newLiked ? game.likeCount + 1 : game.likeCount - 1,
+          };
+        }
+        return game;
+      }));
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+    }
+  }
+
+  useEffect(() => {
+    fetchFeed();
+  }, [user]);
+
+  if (isLoading) {
+    return <Text>Loading Feed...</Text>;
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-              <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-              <ThemedText>
-                {`When you're ready, run `}
-                <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-                <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-                <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-                <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-              </ThemedText>
-            </ThemedView>
-
-            <ThemedView style={styles.stepContainer}>
-                    <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-                    <ThemedText>
-                      {`When you're ready, run `}
-                      <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-                      <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-                      <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-                      <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-                    </ThemedText>
-                  </ThemedView>
-
-                  <ThemedView style={styles.stepContainer}>
-                          <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-                          <ThemedText>
-                            {`When you're ready, run `}
-                            <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-                            <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-                            <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-                            <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-                          </ThemedText>
-                        </ThemedView>
-
-                        <ThemedView style={styles.stepContainer}>
-                                <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-                                <ThemedText>
-                                  {`When you're ready, run `}
-                                  <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-                                  <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-                                  <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-                                  <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-                                </ThemedText>
-                              </ThemedView>
-    </ParallaxScrollView>
+    <FlatList
+      data={feedData}
+      keyExtractor={(item) => item.gameId.toString()}
+      renderItem={({ item }) => <GameFeedItem game={item} onToggleLike={handleToggleLike} />}
+      ListEmptyComponent={<Text style={styles.emptyText}>No recent games from your friends. Go play!</Text>}
+      contentContainerStyle={styles.listContainer}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  listContainer: {
+    paddingVertical: 10,
   },
-  stepContainer: {
-    gap: 8,
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    padding: 15,
+    marginHorizontal: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#555',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  stats: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 10,
   },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+    paddingTop: 10,
+  },
+  actionText: {
+    color: '#4A90E2',
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: '#777',
+  }
 });
