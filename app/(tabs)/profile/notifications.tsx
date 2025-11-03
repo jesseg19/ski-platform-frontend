@@ -6,19 +6,19 @@ import { AntDesign } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useChallenge } from '../../context/WebSocketProvider';
 
-
-interface UserDto {
-    id: number;
+interface User {
+    userId: number;
     username: string;
 }
 
 interface ChallengeNotification {
     id: number;
-    challenger: UserDto;
-    challenged: UserDto;
+    challenger: User;
+    challenged: User;
     createdAt: Date;
-    gameId?: number; // Added for when challenge is accepted
+    gameId?: number;
 }
 
 interface GameStateDto {
@@ -38,6 +38,7 @@ interface GameStateDto {
 export default function NotificationsScreen() {
     const [challengeNotifications, setChallengeNotifications] = React.useState<ChallengeNotification[]>([]);
     const [loading, setLoading] = React.useState(false);
+    const { incomingChallenge, respondToChallenge } = useChallenge();
 
     async function getChallengeNotifications() {
         try {
@@ -54,117 +55,109 @@ export default function NotificationsScreen() {
         getChallengeNotifications();
     }, []);
 
-    const handleDeclineChallenge = (challengeId: number) => async () => {
-        if (loading) return;
-
-        try {
-            setLoading(true);
-            await api.put(`/api/games/challenges/${challengeId}`, {
-                action: 'REJECTED'
-            });
-            console.log('Challenge declined:', challengeId);
-            await getChallengeNotifications();
-        } catch (error) {
-            console.error('Error declining challenge:', error);
-            Alert.alert('Error', 'Failed to decline challenge');
-        } finally {
-            setLoading(false);
+    React.useEffect(() => {
+        if (incomingChallenge) {
+            const exists = challengeNotifications.some(cn => cn.id === incomingChallenge.id);
+            if (!exists) {
+                const newNotification: ChallengeNotification = {
+                    id: incomingChallenge.id,
+                    challenger: incomingChallenge.challenger,
+                    challenged: incomingChallenge.challenged,
+                    createdAt: new Date(),
+                    gameId: incomingChallenge.game?.id
+                };
+                setChallengeNotifications(prev => [newNotification, ...prev]);
+            }
         }
-    }
+    }, [incomingChallenge]);
+
+    const handleDeclineChallenge = (challengeId: number) => async () => {
+        const challengeToRespond = challengeNotifications.find(n => n.id === challengeId);
+
+        if (challengeToRespond) {
+            try {
+                setLoading(true);
+
+                // *** PASS THE CHALLENGE ID ***
+                await respondToChallenge('REJECTED', challengeId);
+
+                // Remove the challenge from the local state immediately
+                setChallengeNotifications(prev => prev.filter(n => n.id !== challengeId));
+                Alert.alert('Challenge Declined', `You have declined the challenge from ${challengeToRespond.challenger.username}.`);
+            } catch (error) {
+                console.error('Error declining challenge:', error);
+                // Don't show error alert if respondToChallenge already showed one
+                if (!(error as any)?.response) {
+                    Alert.alert('Error', 'Failed to decline challenge');
+                }
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
 
     const handleAcceptChallenge = (challengeId: number) => async () => {
+        const challengeToRespond = challengeNotifications.find(n => n.id === challengeId);
+
+        console.log('Attempting to accept challenge:', challengeToRespond);
         if (loading) return;
 
-        try {
-            setLoading(true);
+        if (challengeToRespond) {
+            try {
+                setLoading(true);
 
-            // First check if user has an active game
-            const activeGameCheck = await api.get('/api/games/active/check');
-            console.log('Active game check:', activeGameCheck.data);
+                // First check if user has an active game
+                const activeGameCheck = await api.get('/api/games/active/check');
 
-            if (activeGameCheck.data.hasActiveGame) {
-                Alert.alert(
-                    'Active Game Exists',
-                    'You already have an active game. Please finish or pause it before accepting a new challenge.',
-                    [
-                        {
-                            text: 'Go to Active Game',
-                            onPress: async () => {
-                                // Get the active game details
-                                const activeGameResponse = await api.get('/api/games/active');
-                                const gameData: GameStateDto = activeGameResponse.data;
+                if (activeGameCheck.data.hasActiveGame) {
+                    Alert.alert(
+                        'Active Game Exists',
+                        'You already have an active game. Please finish or pause it before accepting a new challenge.',
+                        [
+                            {
+                                text: 'Go to Active Game',
+                                onPress: async () => {
+                                    // Get the active game details
+                                    const activeGameResponse = await api.get('/api/games/active');
+                                    const gameData: GameStateDto = activeGameResponse.data;
 
-                                // Navigate to the active game
-                                router.push({
-                                    pathname: '/(tabs)/game/1v1',
-                                    params: { activeGame: JSON.stringify(gameData) }
-                                });
-                            }
-                        },
-                        { text: 'Cancel', style: 'cancel' }
-                    ]
-                );
-                return;
+                                    // Navigate to the active game
+                                    router.push({
+                                        pathname: '/(tabs)/game/1v1',
+                                        params: { activeGame: JSON.stringify(gameData) }
+                                    });
+                                }
+                            },
+                            { text: 'Cancel', style: 'cancel' }
+                        ]
+                    );
+                    setLoading(false);
+                    return;
+                }
+
+                await respondToChallenge('ACCEPTED', challengeId);
+
+                // Remove the accepted challenge from the local state immediately
+                setChallengeNotifications(prev => prev.filter(n => n.id !== challengeId));
+
+                // The context's respondToChallenge will handle navigation
+                // No need to show success alert here since navigation will happen
+
+            } catch (error: any) {
+                console.error('Error accepting challenge:', error);
+
+                // Don't show error alert if respondToChallenge already showed one
+                if (!error?.response) {
+                    Alert.alert('Error', 'Failed to accept challenge. Please try again.');
+                }
+            } finally {
+                setLoading(false);
             }
-
-            // Accept the challenge
-            const response = await api.put(`/api/games/challenges/${challengeId}`, {
-                action: 'ACCEPTED'
-            });
-            console.log('Challenge accepted:', response.data);
-
-            // The response should contain the game information
-            const challengeData = response.data;
-
-            if (challengeData.gameId) {
-                Alert.alert(
-                    'Challenge Accepted!',
-                    'Your game has started.',
-                    [
-                        {
-                            text: 'Play Now',
-                            onPress: async () => {
-                                // Fetch the full game state
-                                const gameResponse = await api.get(`/api/games/${challengeData.gameId}`);
-                                const gameData: GameStateDto = gameResponse.data;
-
-                                // Navigate to the game with the full game state
-                                router.push({
-                                    pathname: '/(tabs)/game/1v1',
-                                    params: { activeGame: JSON.stringify(gameData) }
-                                });
-                            }
-                        }
-                    ]
-                );
-            } else {
-                // Fallback: just refresh and show success
-                Alert.alert('Success', 'Challenge accepted! The game will start shortly.');
-            }
-
-            await getChallengeNotifications();
-
-        } catch (error: any) {
-            console.error('Error accepting challenge:', error);
-
-            if (error.response?.status === 400) {
-                Alert.alert(
-                    'Cannot Accept',
-                    error.response?.data?.message || 'Either you or the challenger already has an active game.'
-                );
-            } else if (error.response?.status === 409) {
-                Alert.alert('Error', 'This challenge is no longer available.');
-            } else {
-                Alert.alert('Error', 'Failed to accept challenge. Please try again.');
-            }
-        } finally {
-            setLoading(false);
         }
     }
 
     return (
         <ThemedView style={styles.container}>
-            {/* Header with Logo and Action Icons */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
                     <AntDesign name="arrow-left" size={24} color={Colors.darkBlue} />
@@ -220,7 +213,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
-        paddingTop: 10,
+        paddingTop: 20,
     },
     iconButton: {
         padding: 8,

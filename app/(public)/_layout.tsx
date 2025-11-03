@@ -8,5 +8,5 @@ export default function PublicLayout() {
         return <Redirect href="/(tabs)/home" />;
     }
 
-    return <Stack />;
+    return <Stack screenOptions={{ headerShown: false }} />;
 }

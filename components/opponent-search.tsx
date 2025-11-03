@@ -44,8 +44,6 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
     const [results, setResults] = useState<UserSearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- NEW STATE: Tracks if a selection has been made via the search list ---
-    // This helps differentiate between actively typing and having made a confirmed selection
     const [hasSelectedUser, setHasSelectedUser] = useState(!!selectedUsername);
 
     const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
@@ -73,15 +71,19 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
 
     // --- EFFECT: Trigger search when debounced term changes ---
     React.useEffect(() => {
+
+        if (hasSelectedUser) {
+            // Clear results list to ensure it's hidden after selection
+            setResults([]);
+            return;
+        }
         // Only search if the new debounced term is NOT the one that was selected
-        if (debouncedSearchTerm.length >= 3 && debouncedSearchTerm !== selectedUsername) {
-            setHasSelectedUser(false); // User is typing, not selected
+        if (debouncedSearchTerm.length >= 3) {
             fetchUsers(debouncedSearchTerm);
         } else if (debouncedSearchTerm.length < 3) {
             setResults([]);
-            setHasSelectedUser(false);
         }
-    }, [debouncedSearchTerm, fetchUsers, selectedUsername]);
+    }, [debouncedSearchTerm, fetchUsers, hasSelectedUser]);
 
     // --- Sync internal searchTerm with parent's selectedUsername (e.g., on parent clear) ---
     React.useEffect(() => {
@@ -124,7 +126,7 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
     const renderItem = ({ item }: { item: UserSearchResult }) => (
         <TouchableOpacity
             style={searchStyles.resultItem}
-            onPress={() => handleUserSelect(item)}
+            onPress={() => { handleUserSelect(item); setResults([]); }}
         >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {/* Simplified profile image logic for display */}

@@ -1,5 +1,5 @@
-import { ChallengeProvider } from '@/app/context/ChallengeContext';
 import { GameProvider } from '@/app/context/GameContext';
+import { ChallengeProvider } from '@/app/context/WebSocketProvider';
 import { Stack } from 'expo-router';
 
 export default function MainStackLayout() {

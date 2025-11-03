@@ -36,37 +36,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
-
-
-      <Tabs.Screen
-        name="settings"
-        options={{
-          headerShown: false,
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="friends"
-        options={{
-          headerShown: false,
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="recentGames"
-        options={{
-          headerShown: false,
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          headerShown: false,
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }

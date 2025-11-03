@@ -68,14 +68,12 @@ export default function ChoseGameModeScreen() {
     const navigateToChallengeFriend = async () => {
         try {
             const response = await api.get('/api/games/active');
-            console.log("Active game response:", response.status, response.data);
             const gameData: ActiveGameProps | null = response.data;
-            if (response.status === 200 && gameData && Object.keys(gameData).length > 0) {
+            if (gameData) {
                 const activeGameParam = JSON.stringify(gameData);
 
                 router.push({
                     pathname: '/(tabs)/game/1v1',
-                    // Use a descriptive key like 'activeGame' for the param
                     params: { activeGame: activeGameParam },
                 });
             } else {

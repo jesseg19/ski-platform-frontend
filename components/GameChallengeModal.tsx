@@ -4,7 +4,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import React, { useCallback } from 'react';
 import { Alert, Modal, StyleSheet, View } from 'react-native';
-import { useChallenge } from '../app/context/ChallengeContext';
+import { useChallenge } from '../app/context/WebSocketProvider';
 import { useAuth } from '../auth/AuthContext';
 import { CustomButton } from './CustomButton';
 

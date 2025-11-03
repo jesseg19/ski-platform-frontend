@@ -5,7 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { OpponentSearch } from '@/components/opponent-search';
-import { Feather } from '@expo/vector-icons';
+import { AntDesign, Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 
 const Colors = {
@@ -138,6 +139,12 @@ export default function FriendsScreen() {
 
     return (
         <ThemedView style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                    <AntDesign name="arrow-left" size={24} color={Colors.darkBlue} />
+                </TouchableOpacity>
+                <ThemedText style={styles.headerTitle}>Notifications</ThemedText>
+            </View>
             <ThemedText style={styles.title}>Friends</ThemedText>
             <TouchableOpacity onPress={(addFriends)} style={styles.iconButton}>
                 <Feather name="user-plus" size={24} color={Colors.darkBlue} />
@@ -251,6 +258,17 @@ export default function FriendsScreen() {
 }
 
 const styles = StyleSheet.create({
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingTop: 30,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginLeft: 16,
+    },
     container: {
         flex: 1,
         padding: 16,

@@ -1,8 +1,8 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = 'http://192.168.139.1:8080';
-// const API_BASE_URL = "https://ski-platform-backend.onrender.com";
+// const API_BASE_URL = 'http://192.168.139.1:8080';
+const API_BASE_URL = "https://ski-platform-backend.onrender.com";
 
 
 const api = axios.create({

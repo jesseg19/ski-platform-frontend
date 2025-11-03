@@ -4,7 +4,7 @@ import { ThemedView } from '@/components/themed-view';
 import { AntDesign } from '@expo/vector-icons';
 import React from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { useChallenge } from '../app/context/ChallengeContext';
+import { useChallenge } from '../app/context/WebSocketProvider';
 
 // Assuming you have styles defined elsewhere, using placeholders here
 const modalStyles = StyleSheet.create({

@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Image, ImageBackground, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -109,32 +109,9 @@ export default function ProfileScreen() {
 
 
 
-
-
-
-  // // Dummy Data
-  // setProfileData({
-  //   username: 'SkiMaster30000',
-  //   rank: 'Pro Jibber',
-  //   bio: 'Athlete bio',
-  //   gamesPlayed: 80,
-  //   winRate: '64%',
-  //   favoriteTrick: 'Cork 720',
-  //   recentTrick: {
-  //     opponent: 'Lost against PlayerC',
-  //     score: 150,
-  //   },
-  //   achievements: [
-  //     { icon: 'trophy', title: 'First Win' },
-  //     { icon: 'trophy-outline', title: '100 Games Played' },
-  //     { icon: 'flag', title: 'The Bc.bfflp' },
-  //     { icon: 'snow-outline', title: 'Mosst bik sabara' },
-  //   ],
-  // };
-
   const handleSettingsPress = () => {
     // In a real app, this would lead to a dedicated settings/edit page
-    router.push('/settings');
+    router.push('/(tabs)/profile/settings');
   };
 
 
@@ -163,7 +140,7 @@ export default function ProfileScreen() {
       <ThemedView style={styles.mainContainer}>
         {/* Header with Logo and Action Icons */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/notifications')} style={styles.iconButton}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/profile/notifications')} style={styles.iconButton}>
             <Feather name="bell" size={24} color={Colors.darkBlue} />
           </TouchableOpacity>
 
@@ -181,7 +158,7 @@ export default function ProfileScreen() {
             <TouchableOpacity onPress={handleSettingsPress} style={styles.iconButton}>
               <Feather name="settings" size={24} color={Colors.darkBlue} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/friends')} style={styles.iconButton}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/profile/friends')} style={styles.iconButton}>
               <Feather name="user-plus" size={24} color={Colors.darkBlue} />
             </TouchableOpacity>
 
@@ -214,7 +191,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* Key Stats Card */}
-          <ProfileCard title="Key Stats" actionText="View Match" onActionPress={handleViewMatch}>
+          <ProfileCard title="Key Stats" actionText="View Stats" onActionPress={handleViewMatch}>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <ThemedText style={styles.statValue}>{profileData?.gamesPlayed}</ThemedText>
@@ -232,7 +209,7 @@ export default function ProfileScreen() {
           </ProfileCard>
 
           {/* Recent Tricks/Games Card */}
-          <ProfileCard title="Recent Games" actionText="View All" onActionPress={() => { router.push('/recentGames') }}>
+          <ProfileCard title="Recent Games" actionText="View All" onActionPress={() => { router.push('/(tabs)/profile/recentGames') }}>
             <View style={styles.recentTrickRow}>
               {/* Player Avatar */}
               <Image
@@ -256,7 +233,7 @@ export default function ProfileScreen() {
           </ProfileCard>
 
           {/* Achievements / Badges Card */}
-          <ProfileCard title="Achievements / Badges" actionText="View All" onActionPress={() => router.push('/profile/achievements')}>
+          {/* <ProfileCard title="Achievements / Badges" actionText="View All" onActionPress={() => router.push('/(tabs)/profile/achievements')}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.achievementsScroll}>
               {profileData?.achievements.map((item, index) => (
                 <View key={index} style={styles.achievementItem}>
@@ -269,7 +246,7 @@ export default function ProfileScreen() {
                 </View>
               ))}
             </ScrollView>
-          </ProfileCard>
+          </ProfileCard> */}
 
 
         </ScrollView>

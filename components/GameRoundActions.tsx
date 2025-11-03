@@ -8,13 +8,20 @@ import { LetterDisplay } from './LetterDisplay';
 
 interface GameRoundActionsProps {
     playerName: string;
+    player: GamePlayer;
     lettersEarned: number;
     playerAction: 'land' | 'fail' | null;
     lastTryPlayer: string | null;
     gameStatus: 'playing' | 'gameOver';
     getActionDisabled: (player: string) => boolean;
-    handlePlayerAction: (player: string, action: 'land' | 'fail') => void;
+    handlePlayerAction: (player: GamePlayer, action: 'land' | 'fail') => void;
     handleLastTryAction: (action: 'land' | 'fail') => Promise<void>;
+}
+interface GamePlayer {
+    userId: number;
+    username: string;
+    finalLetters: number;
+    playerNumber: 1 | 2;
 }
 
 // Stylesheet for Main Game View (only player-related styles needed here)
@@ -53,6 +60,7 @@ const mainStyles = StyleSheet.create({
 
 export const GameRoundActions: React.FC<GameRoundActionsProps> = ({
     playerName,
+    player,
     lettersEarned,
     playerAction,
     lastTryPlayer,
@@ -79,14 +87,14 @@ export const GameRoundActions: React.FC<GameRoundActionsProps> = ({
             <>
                 <CustomButton
                     title={`✅ Land ${playerAction === 'land' ? ' (Voted)' : ''}`}
-                    onPress={() => handlePlayerAction(playerName, 'land')}
+                    onPress={() => handlePlayerAction(player, 'land')}
                     isPrimary={true}
                     disabled={disabled || playerAction === 'fail'}
                     style={{ flex: 1, marginRight: 8 }}
                 />
                 <CustomButton
                     title={`❌ Fail ${playerAction === 'fail' ? ' (Voted)' : ''}`}
-                    onPress={() => handlePlayerAction(playerName, 'fail')}
+                    onPress={() => handlePlayerAction(player, 'fail')}
                     isPrimary={false}
                     disabled={disabled || playerAction === 'land'}
                     style={{ flex: 1 }}
