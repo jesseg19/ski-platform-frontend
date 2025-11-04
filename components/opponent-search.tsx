@@ -128,18 +128,20 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
             style={searchStyles.resultItem}
             onPress={() => { handleUserSelect(item); setResults([]); }}
         >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {/* Simplified profile image logic for display */}
-                <Image
-                    source={{ uri: item.profileImageUrl || 'https://via.placeholder.com/40' }}
-                    style={searchStyles.profileImage}
-                />
-                <View>
-                    <ThemedText style={searchStyles.usernameText}>{item.username}</ThemedText>
-                    {item.eloRating && <ThemedText style={searchStyles.eloText}>Rating: {item.eloRating}</ThemedText>}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {/* Simplified profile image logic for display */}
+                    <Image
+                        source={{ uri: item.profileImageUrl || 'https://via.placeholder.com/40' }}
+                        style={searchStyles.profileImage}
+                    />
+                    <View>
+                        <ThemedText style={searchStyles.usernameText}>{item.username}</ThemedText>
+                        <ThemedText style={searchStyles.eloText}>Rating: {item.eloRating}</ThemedText>
+                    </View>
                 </View>
+                <AntDesign name="arrow-right" size={16} color={Colors.darkBlue} />
             </View>
-            <AntDesign name="arrow-right" size={16} color={Colors.darkBlue} />
         </TouchableOpacity>
     );
 
@@ -161,7 +163,6 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
                     placeholderTextColor={Colors.textGrey}
                     value={searchTerm}
                     onChangeText={handleTextChange}
-                    // Input is ONLY editable if no user has been explicitly selected (i.e., not 'locked')
                     editable={!isLocked}
                 />
             </View>

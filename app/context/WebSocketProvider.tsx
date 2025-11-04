@@ -8,7 +8,8 @@ import api from '@/auth/axios';
 import * as SecureStore from 'expo-secure-store';
 import SockJS from 'sockjs-client';
 
-const SOCKET_URL = 'https://ski-platform-backend.onrender.com/ws';
+// const SOCKET_URL = 'https://ski-platform-backend.onrender.com/ws';
+const SOCKET_URL = 'http://192.168.2.97:8080/ws';
 
 interface User {
     userId: number;
@@ -66,6 +67,24 @@ interface LastTryMessage {
     playerOnLastTry: string;
     message: string;
     timestamp: number;
+}
+
+interface ActiveGameProps {
+    gameId: string;
+    currentTurnUserId: number;
+    totalTricks: number;
+    players: {
+        player1: { userId: number; username: string };
+        player2: { userId: number; username: string };
+    };
+    tricks: {
+        turnNumber: number;
+        setterId: number;
+        receiverId: number;
+        setterLanded: boolean;
+        receiverLanded: boolean;
+        trickDetails: string;
+    }
 }
 
 interface ChallengeContextValue {
@@ -230,7 +249,10 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 const gameId: number | undefined = challengeDto.game?.id;
                 if (gameId) {
                     Alert.alert('Challenge Accepted!', `${challengeDto.challenged.username} is ready to play.`);
-                    router.push(`/game/1v1`);
+                    router.push({
+                        pathname: '/(tabs)/game/1v1',
+                        params: { modalVisible: "false" },
+                    });
                 } else {
                     console.error("Game ID missing from accepted challenge response.");
                     Alert.alert("Error", "Challenge accepted, but couldn't start the game.");
@@ -344,27 +366,29 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             const response = await api.put(`/api/games/challenges/${targetChallengeId}`, { action });
 
             if (action === 'ACCEPTED') {
-                const gameId = response.data.game?.id;
+                const gameId = response.data.gameId;
+                console.log(response.data);
+                console.log('Accepted challenge, starting game with ID:', gameId);
+                const activeGame = await api.get('/api/games/active');
+                const gameData: ActiveGameProps | null = activeGame.data;
                 if (gameId) {
-                    // Clear the incoming challenge state after accepting
                     setIncomingChallenge(null);
+
 
                     router.push({
                         pathname: '/game/1v1',
-                        params: { gameId: gameId }
+                        params: { gameId: gameId, activeGame: JSON.stringify(gameData) },
                     });
                 } else {
                     console.error("Game ID missing from accepted challenge API response.");
                     Alert.alert("Error", "Accepted, but couldn't start the game.");
                 }
             } else if (action === 'REJECTED') {
-                // Clear the incoming challenge state after rejecting
                 setIncomingChallenge(null);
             }
         } catch (error: any) {
             console.error(`Failed to ${action} challenge:`, error);
 
-            // Provide more specific error messages
             if (error.response?.status === 400) {
                 Alert.alert(
                     'Cannot Accept',

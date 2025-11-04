@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+import NetInfo from '@react-native-community/netinfo';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ImageBackground, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { CustomButton } from '@/components/CustomButton';
@@ -14,9 +15,9 @@ import { useChallenge } from '../../context/WebSocketProvider';
 
 import api from '@/auth/axios';
 import { mainStyles } from '@/constants/AppStyles';
+import { gameSyncService } from '../../services/GameSyncService';
+import { localGameDB } from '../../services/LocalGameDatabase';
 
-
-// --- CONSTANTS (Keep utility logic outside the component) ---
 const GAME_LETTERS = ['S', 'K', 'I'];
 const MAX_LETTERS = GAME_LETTERS.length;
 
@@ -49,31 +50,16 @@ interface ActiveGameProps {
   status: string;
 }
 
-export interface GameUpdateDto {
-  gameId: number;
-  currentTurnUserId: number | null;
-  p1Letters: number;
-  p2Letters: number;
-  calledTrick: string;
-  p1Action: 'land' | 'fail' | null;
-  p2Action: 'land' | 'fail' | null;
-  lastTryPlayer: string | null;
-  gameStatus: 'playing' | 'gameOver';
-  currentMessage: string;
-}
-
 export default function GameScreen1v1() {
   const { resetGameKey, gameKey } = useGame();
   const { user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
   const { activeGame } = params;
+  const { modalVisible } = params;
 
   const {
     isConnected,
-    sendChallenge,
-    sentChallengeStatus,
-    resetSentChallenge,
     subscribeToGame,
     publishPlayerAction,
     publishTrickCall,
@@ -85,15 +71,21 @@ export default function GameScreen1v1() {
     lastTryMessage,
   } = useChallenge();
 
-  // a ref to track if we've already processed this round
-  const roundProcessedRef = React.useRef<string | null>(null);
+  // Connection state
+  const [isOnline, setIsOnline] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [syncInProgress, setSyncInProgress] = useState(false);
 
+  // Critical refs to prevent race conditions
+  const isProcessingRound = useRef(false);
+  const currentRoundNumber = useRef<number>(1);
+  const lastProcessedRoundKey = useRef<string | null>(null);
+  const actionDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- PARSE INITIAL GAME PROPS FROM PARAMS ---
+  // Parse initial game props
   let initialGameProps: ActiveGameProps | null = null;
   if (activeGame && typeof activeGame === 'string') {
     try {
-      // Deserialize the JSON string back into an object
       initialGameProps = JSON.parse(activeGame) as ActiveGameProps;
       console.log('Active Game Loaded from Params:', initialGameProps.gameId);
     } catch (e) {
@@ -101,35 +93,21 @@ export default function GameScreen1v1() {
     }
   }
 
-  // --- STATE INITIALIZATION ---
-  // Function to calculate initial state from props or set defaults
+  // State initialization function
   const getInitialState = (props: ActiveGameProps | null) => {
-
-    // const player1Data = initialGameProps?.players.find(p => p.playerNumber === 1);
-    // let player2Data = initialGameProps?.players.find(p => p.playerNumber === 2);
-
     const currentUser = user;
     const currentUserUsername = currentUser?.username || 'Player 1';
-    // Default values for a fresh game
+
     let p1Username = currentUserUsername;
     let p2Username = '';
     let p1User = null;
     let p2User = null;
-    let whosSet = currentUserUsername; // Default starter for a fresh game
+    let whosSet = currentUserUsername;
     let p1Letters = 0;
     let p2Letters = 0;
     let namesModalVisible = true;
     let calledTrick = 'Awaiting set call...';
     let currentMessage = 'Welcome to Ski Platform!';
-
-
-    // console.log("challenger:", player1Data);
-    // console.log("opponent:", player2Data);
-
-    //  p1Username = player1Data?.username || 'Player 1';
-    //  p2Username = player2Data?.username || 'Player 2';
-
-    const whoStarts = () => Math.random() < 0.5 ? p1Username : p2Username;
 
     if (props && currentUser) {
       const userGameData = props.players.find(p => p.userId === currentUser.id);
@@ -139,7 +117,7 @@ export default function GameScreen1v1() {
         p1Username = userGameData.username;
         p2Username = opponentGameData.username;
         p1User = userGameData;
-        p2User = opponentGameData; // The opponent is who p2User tracks
+        p2User = opponentGameData;
         p1Letters = userGameData.finalLetters;
         p2Letters = opponentGameData.finalLetters;
       }
@@ -147,12 +125,15 @@ export default function GameScreen1v1() {
       const lastTrick = props.tricks[props.tricks.length - 1];
       const initialWhosSet = lastTrick
         ? (lastTrick.setterId === currentUser.id ? p1Username : p2Username)
-        : p1Username; // Assuming the current user (P1) starts if no tricks exist
+        : p1Username;
 
       whosSet = initialWhosSet;
       namesModalVisible = false;
       calledTrick = 'Awaiting set call...';
       currentMessage = `Resumed game with ${p2Username}.`;
+
+      // Set current round number
+      currentRoundNumber.current = props.tricks.length + 1;
 
       return {
         gameId: props.gameId,
@@ -170,14 +151,13 @@ export default function GameScreen1v1() {
       };
     }
 
-    // Default state for a FRESH game (if props is null or user is null)
     return {
       gameId: -1,
       p1Username: currentUserUsername,
       p1User: null,
-      p2User: null, // Initial P2 is null, set by the modal
-      p2Username: '', // Set by the modal
-      whosSet: whoStarts(), // This needs to be 'Player 1' or 'Player 2' string initially.
+      p2User: null,
+      p2Username: '',
+      whosSet: currentUserUsername,
       p1Letters: 0,
       p2Letters: 0,
       calledTrick,
@@ -189,262 +169,423 @@ export default function GameScreen1v1() {
 
   const initialState = getInitialState(initialGameProps);
 
-  const [gameId, setGameId] = React.useState<-1 | number>(initialState.gameId);
-  const [namesModalVisible, setNamesModalVisible] = React.useState(initialState.namesModalVisible);
-  const [p1Username, setP1Username] = React.useState(initialState.p1Username);
-  const [p1User, setP1User] = React.useState(initialState.p1User);
-  const [p2User, setP2User] = React.useState(initialState.p2User);
-  const [p2Username, setP2Username] = React.useState(initialState.p2Username);
-  const [whosSet, setWhosSet] = React.useState(initialState.whosSet);
-  const [p1Letters, setP1Letters] = React.useState(initialState.p1Letters);
-  const [p2Letters, setP2Letters] = React.useState(initialState.p2Letters);
-  const [calledTrick, setCalledTrick] = React.useState(initialState.calledTrick);
-  const [currentMessage, setCurrentMessage] = React.useState(initialState.currentMessage);
-  const [isChallengeActive, setIsChallengeActive] = React.useState(initialState.isChallengeActive);
+  console.log('Initial Game State:', initialState);
+  // State declarations
+  const [gameId, setGameId] = useState<-1 | number>(initialState.gameId);
+  const [namesModalVisible, setNamesModalVisible] = useState(() => {
+    // If the 'modalVisible' param is "false", (e.g., from accepting a challenge)
+    //    DO NOT show the modal.
+    if (modalVisible === "false") {
+      return false;
+    }
 
-  const [setCallModalVisible, setSetCallModalVisible] = React.useState(false);
-  const [p1Action, setP1Action] = React.useState<'land' | 'fail' | null>(null);
-  const [p2Action, setP2Action] = React.useState<'land' | 'fail' | null>(null);
-  const [lastTryPlayer, setLastTryPlayer] = React.useState<string | null>(null);
-  const [gameStatus, setGameStatus] = React.useState<'playing' | 'gameOver'>('playing');
-  const [pauseOrQuitModalVisible, setPauseOrQuitModalVisible] = React.useState(false);
-  const [trickState, setTrickState] = React.useState({
-    stance: null, spinDirection: null, numberOfFlips: null, axis: null, degreeOfRotation: null, grab: null
+    // If we are loading an existing game (initialGameProps exists)
+    //    and the param wasn't set, STILL don't show the modal.
+    if (initialGameProps) {
+      return false;
+    }
+
+    // Otherwise, it must be a brand new game, so show the modal.
+    return true;
   });
+  const [p1Username, setP1Username] = useState(initialState.p1Username);
+  const [p1User, setP1User] = useState(initialState.p1User);
+  const [p2User, setP2User] = useState(initialState.p2User);
+  const [p2Username, setP2Username] = useState(initialState.p2Username);
+  const [whosSet, setWhosSet] = useState(initialState.whosSet);
+  const [p1Letters, setP1Letters] = useState(initialState.p1Letters);
+  const [p2Letters, setP2Letters] = useState(initialState.p2Letters);
+  const [calledTrick, setCalledTrick] = useState(initialState.calledTrick);
+  const [currentMessage, setCurrentMessage] = useState(initialState.currentMessage);
+  const [isChallengeActive, setIsChallengeActive] = useState(initialState.isChallengeActive);
 
-  const handleBackToMenu = useCallback(() => {
-    setPauseOrQuitModalVisible(true);
-
-  }, [resetGameKey, router]);
-
-  const handlePauseGame = () => {
-    api.put(`/api/games/${gameId}/pause`);
-    setPauseOrQuitModalVisible(false);
-    resetGameKey();
-    router.navigate('/(tabs)/game');
-  };
-
-  const handleQuitGame = () => {
-    api.delete(`/api/games/${gameId}/cancel`);
-    setPauseOrQuitModalVisible(false);
-    resetGameKey();
-    router.navigate('/(tabs)/game');
-  };
+  const [setCallModalVisible, setSetCallModalVisible] = useState(false);
+  const [p1Action, setP1Action] = useState<'land' | 'fail' | null>(null);
+  const [p2Action, setP2Action] = useState<'land' | 'fail' | null>(null);
+  const [lastTryPlayer, setLastTryPlayer] = useState<string | null>(null);
+  const [gameStatus, setGameStatus] = useState<'playing' | 'gameOver'>('playing');
+  const [pauseOrQuitModalVisible, setPauseOrQuitModalVisible] = useState(false);
 
   const otherPlayerName = whosSet === p1Username ? p2Username : p1Username;
   const isCurrentSetter = whosSet === p1Username;
 
-  async function saveRound(gameId: number, setter: string, trick: string, setterLanded: boolean | null, receiverLanded: boolean, letterGivenTo: string | null) {
-    try {
-      const response = await api.post(`/api/games/${gameId}/resolveRound`, {
-        setterUsername: setter,
-        receiverUsername: otherPlayerName,
-        trickDetails: trick,
-        setterLanded: setterLanded,
-        receiverLanded: receiverLanded,
-        letterAssignToUsername: letterGivenTo,
-      });
-      console.log("Round outcome saved successfully!" + response.data);
-    } catch (error) {
-      console.error("Failed to save round outcome:", error);
-      Alert.alert("Error", "Failed to save game progress. ");
-    }
-    if (letterGivenTo) {
-      try {
-        const playerToGiveLetter = letterGivenTo === p1Username ? p1User : letterGivenTo === p2Username ? p2User : null;
-        let playerLetter = playerToGiveLetter === p1User ? p1Letters : p2Letters;
-        if (playerToGiveLetter && playerToGiveLetter.finalLetters !== undefined) {
-          await api.put(`/api/games/${gameId}/players/${playerToGiveLetter.userId}/letters?letterCount=${playerLetter + 1}`, {});
-          console.log("playerToGiveLetter:", playerLetter);
-        }
-      } catch (error) {
-        console.error("Failed to save letter to player:", error);
-        Alert.alert("Error", "Failed to save letter to player.");
+
+
+  // ==================== NETWORK MONITORING ====================
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const online = state.isConnected || false;
+      setIsOnline(online);
+
+      // Only sync if we have pending actions and just came back online
+      if (online && gameId > 0 && !syncInProgress) {
+        // Delay sync to avoid race conditions
+        setTimeout(() => {
+          syncGameState();
+        }, 1000);
       }
-    }
-  }
+    });
 
-  async function saveGameResult(gameId: number, winner: string, loser: string) {
-    console.log("Saving game result:", gameId, winner, loser, winner === p1Username ? p1Letters : p2Letters, loser === p1Username ? p1Letters : p2Letters);
+    return () => unsubscribe();
+  }, [gameId]);
+
+  // ==================== LOCAL STORAGE & SYNC ====================
+
+  const saveLocalGameState = useCallback(async () => {
+    if (gameId <= 0) return;
+
     try {
-      const response = await api.post(`/api/games/${gameId}/end`, {
-        winnerUsername: winner,
-        loserUsername: loser,
-        winnerFinalLetters: winner === p1Username ? p1Letters : p2Letters,
-        loserFinalLetters: loser === p1Username ? p1Letters : p2Letters,
+      await localGameDB.saveGameState({
+        gameId,
+        p1Username,
+        p2Username,
+        p1UserId: p1User?.userId || 0,
+        p2UserId: p2User?.userId || 0,
+        p1Letters,
+        p2Letters,
+        whosSet,
+        calledTrick,
+        currentMessage,
+        lastSyncedAt: Date.now(),
+        isDirty: !isOnline,
       });
-      console.log("Game result saved successfully!" + response.data);
-      router.navigate('/(tabs)/game');
+    } catch (error) {
+      console.error('Failed to save local state:', error);
+    }
+  }, [gameId, p1Username, p2Username, p1User, p2User, p1Letters, p2Letters, whosSet, calledTrick, currentMessage, isOnline]);
+
+  const syncGameState = useCallback(async () => {
+    if (gameId <= 0 || !user || syncInProgress) return;
+
+    setSyncInProgress(true);
+    try {
+      const result = await gameSyncService.syncGame(gameId, user.username);
+
+      if (result.success && result.syncedActions > 0) {
+        setLastSyncTime(new Date());
+
+        // Only show alert if there were actual conflicts (not just normal syncs)
+        if (result.conflicts && result.conflicts.length > 0) {
+          Alert.alert(
+            'Game Synced',
+            `Your game was synced. ${result.conflicts.length} conflict(s) resolved.`,
+            [{ text: 'OK' }]
+          );
+        }
+
+        // Reload state from server
+        const response = await api.get(`/api/games/${gameId}`);
+        const serverState = response.data;
+
+        // Update local state with server data
+        const p1 = serverState.players.find((p: any) => p.username === p1Username);
+        const p2 = serverState.players.find((p: any) => p.username === p2Username);
+
+        if (p1) setP1Letters(p1.finalLetters);
+        if (p2) setP2Letters(p2.finalLetters);
+
+        currentRoundNumber.current = serverState.tricks.length + 1;
+      }
+    } catch (error) {
+      console.error('Sync failed:', error);
+    } finally {
+      setSyncInProgress(false);
+    }
+  }, [gameId, user, syncInProgress, p1Username, p2Username]);
+
+  // Debounced save state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveLocalGameState();
+    }, 500); // Debounce by 500ms
+
+    return () => clearTimeout(timer);
+  }, [p1Letters, p2Letters, whosSet, calledTrick, currentMessage]);
+
+  // ==================== GAME LOGIC ====================
+
+  const saveRound = useCallback(async (
+    gameId: number,
+    setter: string,
+    trick: string,
+    setterLanded: boolean | null,
+    receiverLanded: boolean,
+    letterGivenTo: string | null
+  ) => {
+    const receiverName = setter === p1Username ? p2Username : p1Username;
+    const roundNumToSave = currentRoundNumber.current; // Capture round number at start
+
+    // --- Helper function to save action locally ---
+    const saveLocally = async (reason: string) => {
+      console.log(`Round ${roundNumToSave} saving locally (${reason})`);
+      try {
+        await gameSyncService.saveActionLocally(
+          gameId,
+          roundNumToSave,
+          setter,
+          receiverName,
+          trick,
+          setterLanded,
+          receiverLanded,
+          letterGivenTo,
+          user?.username || p1Username
+        );
+      } catch (error) {
+        console.error("Failed to save action locally:", error);
+      }
+    };
+
+    // --- Main Save Logic ---
+    try {
+      if (isOnline) {
+        // --- ONLINE PATH ---
+        try {
+          // 1. Try to sync to server
+          await api.post(`/api/games/${gameId}/resolveRound`, {
+            setterUsername: setter,
+            receiverUsername: receiverName,
+            trickDetails: trick,
+            setterLanded: setterLanded,
+            receiverLanded: receiverLanded,
+            letterAssignToUsername: letterGivenTo,
+            inputByUsername: user?.username || p1Username,
+            clientTimestamp: Date.now(),
+          });
+          console.log(`Round ${roundNumToSave} synced to server successfully.`);
+
+          // DO NOT save locally here. The server has it.
+          // This prevents the sync conflict alert.
+
+        } catch (error: any) {
+          // 2. Server sync FAILED (network drop, 500 error, etc.)
+          // Save locally as a fallback.
+          console.error(`Failed to sync round ${roundNumToSave} to server, saving locally:`, error);
+          await saveLocally("server sync failed");
+        }
+      } else {
+        // --- OFFLINE PATH ---
+        await saveLocally("user is offline");
+      }
+
+      // --- COMMON LOGIC (Update UI/State) ---
+
+      // Increment round number *after* successful processing
+      currentRoundNumber.current += 1;
+
+      // Optimistically update letter count in the UI.
+      // We removed the redundant `api.put` call. The server-side 
+      // `resolveRound` endpoint should be the source of truth for 
+      // letter updates, which will be broadcast via WebSocket.
+      if (letterGivenTo) {
+        const playerToGiveLetter = letterGivenTo === p1Username ? p1User : letterGivenTo === p2Username ? p2User : null;
+        const playerLetter = playerToGiveLetter === p1User ? p1Letters : p2Letters;
+
+        if (playerToGiveLetter) {
+          const newLetterCount = playerLetter + 1;
+
+          // Update local UI state
+          if (letterGivenTo === p1Username) {
+            setP1Letters(newLetterCount);
+          } else {
+            setP2Letters(newLetterCount);
+          }
+        }
+      }
 
     } catch (error) {
-      console.error("Failed to save game result:", error);
-      Alert.alert("Error", "Failed to save game result.");
+      console.error(`Failed to save round ${roundNumToSave}:`, error);
+      Alert.alert("Error", "Failed to save game progress.");
     }
-  }
+  }, [gameId, p1Username, p2Username, p1User, p2User, p1Letters, p2Letters, user, isOnline]);
 
   const resolveRound = useCallback(async (setterLanded: boolean, receiverLanded: boolean) => {
-    // Create a unique key for this round to prevent duplicate processing
-    const roundKey = `${gameId}-${calledTrick}-${setterLanded}-${receiverLanded}`;
+    // Prevent duplicate processing
+    const roundKey = `${gameId}-${currentRoundNumber.current}-${calledTrick}-${setterLanded}-${receiverLanded}`;
 
-    // Check if we've already processed this round
-    if (roundProcessedRef.current === roundKey) {
-      console.log('Round already processed, skipping...');
+    if (isProcessingRound.current || roundKey === lastProcessedRoundKey.current) {
+      console.log('Round already being processed or already processed, skipping...');
       return;
     }
 
-    // Mark this round as processed
-    roundProcessedRef.current = roundKey;
+    isProcessingRound.current = true;
+    lastProcessedRoundKey.current = roundKey;
 
-    let playerWhoGotLetter: string | null = null;
-    const receiverName = whosSet === p1Username ? p2Username : p1Username;
+    try {
+      let playerWhoGotLetter: string | null = null;
+      const receiverName = whosSet === p1Username ? p2Username : p1Username;
+      const currentTrick = calledTrick;
 
-    // ---  SCENARIO 1 & 4 (Both Land or Both Fail) ---
-    if (setterLanded === receiverLanded) {
-      // Both succeeded or both failed - no letter given
-      playerWhoGotLetter = null;
+      // Reset UI immediately to prevent double-clicks
+      setP1Action(null);
+      setP2Action(null);
 
-      // Save the round immediately
-      await saveRound(gameId, whosSet, calledTrick, setterLanded, receiverLanded, playerWhoGotLetter);
+      // Both land or both fail
+      if (setterLanded === receiverLanded) {
+        playerWhoGotLetter = null;
+        await saveRound(gameId, whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
 
-      // Backend will broadcast RoundResolvedMessage to both devices
-      return;
-    }
-
-    // --- SCENARIO 2 (Setter Lands, Receiver Fails) ---
-    else if (setterLanded && !receiverLanded) {
-      const receiverLetters = whosSet === p1Username ? p2Letters : p1Letters;
-
-      if (!isLastTry(receiverLetters)) {
-        // Receiver gets a letter
-        playerWhoGotLetter = receiverName;
-        await saveRound(gameId, whosSet, calledTrick, setterLanded, receiverLanded, playerWhoGotLetter);
-      } else {
-        // Last Try initiated for receiver
-        setLastTryPlayer(receiverName);
-        const lastTryMsg = `${receiverName} missed! They are on their last letter and get 2 attempts.`;
-        setCurrentMessage(lastTryMsg);
-
-        // Broadcast last try state to both devices
-        publishLastTry(gameId, receiverName, lastTryMsg);
-        return; // Don't save yet, wait for last try
+        // Update UI based on outcome
+        if (!setterLanded) {
+          setWhosSet(receiverName);
+          setCurrentMessage(`Both players missed. ${receiverName}'s set now.`);
+        } else {
+          setCurrentMessage(`Both players landed! ${whosSet} keeps the set.`);
+        }
+        setCalledTrick("Awaiting set call...");
       }
-    }
+      // Setter lands, receiver fails
+      else if (setterLanded && !receiverLanded) {
+        const receiverLetters = whosSet === p1Username ? p2Letters : p1Letters;
 
-    // --- SCENARIO 3 (Setter Fails, Receiver Lands) ---
-    else if (!setterLanded && receiverLanded) {
-      const setterLetters = whosSet === p1Username ? p1Letters : p2Letters;
-
-      if (!isLastTry(setterLetters)) {
-        // Setter gets a letter
-        playerWhoGotLetter = whosSet;
-        await saveRound(gameId, whosSet, calledTrick, setterLanded, receiverLanded, playerWhoGotLetter);
-      } else {
-        // Last Try initiated for setter
-        setLastTryPlayer(whosSet);
-        const lastTryMsg = `${whosSet} fell! As the setter, they get a 2nd try.`;
-        setCurrentMessage(lastTryMsg);
-
-        // Broadcast last try state to both devices
-        publishLastTry(gameId, whosSet, lastTryMsg);
-        return; // Don't save yet, wait for last try
+        if (!isLastTry(receiverLetters)) {
+          playerWhoGotLetter = receiverName;
+          await saveRound(gameId, whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
+          setCurrentMessage(`${whosSet} landed it! ${whosSet} keeps the set.`);
+          setCalledTrick("Awaiting set call...");
+        } else {
+          setLastTryPlayer(receiverName);
+          const lastTryMsg = `${receiverName} missed! They are on their last letter and get 2 attempts.`;
+          setCurrentMessage(lastTryMsg);
+          if (isOnline) {
+            publishLastTry(gameId, receiverName, lastTryMsg);
+          }
+          // Don't reset trick yet - they need to see what they're attempting
+          return;
+        }
       }
+      // Setter fails, receiver lands
+      else if (!setterLanded && receiverLanded) {
+        const setterLetters = whosSet === p1Username ? p1Letters : p2Letters;
+
+        if (!isLastTry(setterLetters)) {
+          playerWhoGotLetter = whosSet;
+          await saveRound(gameId, whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
+          setWhosSet(receiverName);
+          setCurrentMessage(`${whosSet} fell but ${receiverName} landed it. ${receiverName}'s set now.`);
+          setCalledTrick("Awaiting set call...");
+        } else {
+          setLastTryPlayer(whosSet);
+          const lastTryMsg = `${whosSet} fell! As the setter, they get a 2nd try.`;
+          setCurrentMessage(lastTryMsg);
+          if (isOnline) {
+            publishLastTry(gameId, whosSet, lastTryMsg);
+          }
+          // Don't reset trick yet
+          return;
+        }
+      }
+    } finally {
+      {
+        isProcessingRound.current = false;
+      };
     }
-  }, [p1Letters, p2Letters, whosSet, p1Username, p2Username, gameId, calledTrick, publishLastTry]);
+  }, [p1Letters, p2Letters, whosSet, p1Username, p2Username, gameId, calledTrick, publishLastTry, saveRound, isOnline]);
 
-
-
-  // The component responsible for handling the two final attempts
-  const handleLastTryAction = async (action: 'land' | 'fail') => { // Make this async
+  const handleLastTryAction = async (action: 'land' | 'fail') => {
     const playerOnLastTry = lastTryPlayer;
-    if (!playerOnLastTry) return;
+    if (!playerOnLastTry || isProcessingRound.current) return;
 
-    const currentSetter = whosSet; // The setter for this entire trick
-    const receiverName = currentSetter === p1Username ? p2Username : p1Username;
+    isProcessingRound.current = true;
 
-    // Determine who landed/failed for the saveRound function
-    let setterLandedFinal: boolean | null = null;
-    let receiverLandedFinal: boolean = action === 'land';
-    const isSetterOnLastTry = playerOnLastTry === currentSetter;
+    try {
+      const currentSetter = whosSet;
+      const receiverName = currentSetter === p1Username ? p2Username : p1Username;
 
-    if (isSetterOnLastTry) {
-      setterLandedFinal = action === 'land';
-      receiverLandedFinal = true;
-    } else {
-      setterLandedFinal = true;
-      receiverLandedFinal = action === 'land';
-    }
+      let setterLandedFinal: boolean | null = null;
+      let receiverLandedFinal: boolean = action === 'land';
+      const isSetterOnLastTry = playerOnLastTry === currentSetter;
 
-    const trickToSave = `${calledTrick} (2nd Try)`;
-
-    if (action === 'land') {
-      await saveRound(gameId, currentSetter, trickToSave, setterLandedFinal, receiverLandedFinal, null);
-
-      setLastTryPlayer(null);
       if (isSetterOnLastTry) {
-        setWhosSet(receiverName);
+        setterLandedFinal = action === 'land';
+        receiverLandedFinal = true;
       } else {
-        setWhosSet(currentSetter);
+        setterLandedFinal = true;
+        receiverLandedFinal = action === 'land';
       }
-      setCurrentMessage(`${playerOnLastTry} survived the round! It's now ${whosSet}'s set.`);
-      setCalledTrick("Awaiting set call...");
 
-    } else {
-      setGameStatus('gameOver');
-      const winnerName = playerOnLastTry === p1Username ? p2Username : p1Username;
+      const trickToSave = `${calledTrick} (2nd Try)`;
 
-      // Player gets the final letter
-      const letterGivenTo = playerOnLastTry;
-      if (playerOnLastTry === p1Username) setP1Letters(MAX_LETTERS);
-      if (playerOnLastTry === p2Username) setP2Letters(MAX_LETTERS);
+      if (action === 'land') {
+        await saveRound(gameId, currentSetter, trickToSave, setterLandedFinal, receiverLandedFinal, null);
 
-      // Save the round with the final failed attempt and the letter assigned
-      await saveRound(gameId, currentSetter, trickToSave, setterLandedFinal, receiverLandedFinal, letterGivenTo);
+        setLastTryPlayer(null);
+        const newSetter = isSetterOnLastTry ? receiverName : currentSetter;
+        setWhosSet(newSetter);
+        setCurrentMessage(`${playerOnLastTry} survived! ${newSetter}'s set now.`);
+        setCalledTrick("Awaiting set call...");
+      } else {
+        setGameStatus('gameOver');
+        const winnerName = playerOnLastTry === p1Username ? p2Username : p1Username;
+        const letterGivenTo = playerOnLastTry;
 
-      setLastTryPlayer(null); // Clear last try state
-      setCurrentMessage(`GAME OVER! ${winnerName} WINS!`);
-      setCalledTrick("Awaiting set call..."); // Reset for new round
+        if (playerOnLastTry === p1Username) setP1Letters(MAX_LETTERS);
+        if (playerOnLastTry === p2Username) setP2Letters(MAX_LETTERS);
+
+        await saveRound(gameId, currentSetter, trickToSave, setterLandedFinal, receiverLandedFinal, letterGivenTo);
+
+        setLastTryPlayer(null);
+        setCurrentMessage(`GAME OVER! ${winnerName} WINS!`);
+        setCalledTrick("Game Over");
+      }
+    } finally {
+      isProcessingRound.current = false;
     }
   };
 
-
-  // --- HANDLERS ---
+  // ==================== HANDLERS ====================
 
   const handlePlayerAction = useCallback((player: GamePlayer, action: 'land' | 'fail') => {
-    // Update local state immediately for responsive UI
-    if (player.username === p1Username) {
-      setP1Action(action);
-    } else {
-      setP2Action(action);
+    // Debounce to prevent double-clicks
+    if (actionDebounceTimer.current) {
+      clearTimeout(actionDebounceTimer.current);
     }
 
-    // Publish action via WebSocket
-    if (gameId > 0 && user) {
-      publishPlayerAction(gameId, user.id, action);
-    }
+    actionDebounceTimer.current = setTimeout(() => {
+      if (player.username === p1Username) {
+        setP1Action(prev => prev === null ? action : prev);
+      } else {
+        setP2Action(prev => prev === null ? action : prev);
+      }
 
-    if (action === 'fail' && lastTryPlayer === player.username) {
-      setCurrentMessage(`${lastTryPlayer} missed! They are on their last letter and get 2 attempts.`);
-    }
-  }, [p1Username, lastTryPlayer, gameId, user, publishPlayerAction]);
+      // Publish via WebSocket if online
+      if (gameId > 0 && user && isOnline) {
+        publishPlayerAction(gameId, user.id, action);
+      }
+    }, 300); // 300ms debounce
+  }, [p1Username, gameId, user, publishPlayerAction, isOnline]);
 
   const handleSaveGame = async () => {
     if (gameStatus === 'gameOver') {
       const winner = p1Letters === MAX_LETTERS ? p2Username : p1Username;
       const loser = p1Letters === MAX_LETTERS ? p1Username : p2Username;
-      await saveGameResult(gameId, winner, loser);
+
+      try {
+        await api.post(`/api/games/${gameId}/end`, {
+          winnerUsername: winner,
+          loserUsername: loser,
+          winnerFinalLetters: winner === p1Username ? p1Letters : p2Letters,
+          loserFinalLetters: loser === p1Username ? p1Letters : p2Letters,
+        });
+
+        await localGameDB.clearGameData(gameId);
+        router.navigate('/(tabs)/game');
+      } catch (error) {
+        console.error("Failed to save game result:", error);
+        Alert.alert("Error", "Failed to save game result.");
+      }
     }
-  }
+  };
 
   const handleTrickCall = useCallback((trickString: string) => {
     setCalledTrick(trickString);
     setSetCallModalVisible(false);
     setCurrentMessage(`${whosSet} called: ${trickString}`);
 
-    // Publish trick call via WebSocket instead of just local state
-    if (gameId > 0) {
+    if (gameId > 0 && isOnline) {
       publishTrickCall(gameId, whosSet, trickString);
     }
-  }, [whosSet, gameId, publishTrickCall]);
+  }, [whosSet, gameId, publishTrickCall, isOnline]);
 
   const handleChallengeStart = useCallback((opponentUsername: string) => {
     setP2Username(opponentUsername);
@@ -453,62 +594,33 @@ export default function GameScreen1v1() {
     setIsChallengeActive(true);
   }, []);
 
-  // --- EFFECTS ---
+  const handleBackToMenu = useCallback(() => {
+    setPauseOrQuitModalVisible(true);
+  }, []);
 
-  React.useEffect(() => {
-    // Logic for handling resolved challenge status
-    if (sentChallengeStatus) {
-      if (sentChallengeStatus.status === 'ACCEPTED') {
-        Alert.alert(
-          'Challenge Accepted!',
-          `Game with ${sentChallengeStatus.challenged?.username} has started!`,
-          [{ text: "OK", onPress: () => resetSentChallenge() }]
-        );
-        // UNLOCK THE GAME: Set game ID from challenge response and stop waiting
-        setGameId(sentChallengeStatus.game?.id || 0);
-        setIsChallengeActive(false);
-        setCurrentMessage(`${whosSet} must call the first trick.`);
-
-      } else if (sentChallengeStatus.status === 'REJECTED') {
-        Alert.alert(
-          'Challenge Declined',
-          `${sentChallengeStatus.challenged?.username} declined your challenge.`,
-          [{
-            text: "OK", onPress: () => {
-              resetSentChallenge();
-              handleBackToMenu(); // RETURN TO HOME/LOBBY
-            }
-          }]
-        );
-      }
+  const handlePauseGame = async () => {
+    try {
+      await api.put(`/api/games/${gameId}/pause`);
+      setPauseOrQuitModalVisible(false);
+      resetGameKey();
+      router.navigate('/(tabs)/game');
+    } catch (error) {
+      console.error("Failed to pause game:", error);
     }
-  }, [user, params.gameId, sentChallengeStatus, handleBackToMenu]);
+  };
 
-  React.useEffect(() => {
-    if (gameId > 0) {
-      console.log('Subscribing to game:', gameId);
-      const unsubscribe = subscribeToGame(gameId);
-      return unsubscribe;
+  const handleQuitGame = async () => {
+    try {
+      await api.delete(`/api/games/${gameId}/cancel`);
+      await localGameDB.clearGameData(gameId);
+      setPauseOrQuitModalVisible(false);
+      resetGameKey();
+      router.navigate('/(tabs)/game');
+    } catch (error) {
+      console.error("Failed to quit game:", error);
     }
-  }, [gameId, subscribeToGame]);
+  };
 
-  React.useEffect(() => {
-    if (p1Action !== null && p2Action !== null) {
-      const setterLanded = isCurrentSetter ? (p1Action === 'land') : (p2Action === 'land');
-      const receiverLanded = isCurrentSetter ? (p2Action === 'land') : (p1Action === 'land');
-      resolveRound(setterLanded, receiverLanded);
-    }
-  }, [p1Action, p2Action, isCurrentSetter, resolveRound]);
-
-  // Set initial setter's name to the actual username
-  React.useEffect(() => {
-    if (p1Username && p2Username && namesModalVisible === false) {
-      const starterName = whosSet === p1Username ? p1Username : p2Username;
-      setWhosSet(starterName);
-    }
-  }, [namesModalVisible, p1Username, p2Username]);
-
-  // Determine if the action buttons should be disabled for a player
   const getActionDisabled = useCallback((player: string) => {
     const action = player === p1Username ? p1Action : p2Action;
     const isAwaitingSet = calledTrick.trim() === 'Awaiting set call...';
@@ -517,117 +629,125 @@ export default function GameScreen1v1() {
       lastTryPlayer !== null ||
       gameStatus === 'gameOver' ||
       isAwaitingSet ||
-      isChallengeActive
+      isChallengeActive ||
+      isProcessingRound.current
     );
   }, [p1Username, p1Action, p2Action, lastTryPlayer, gameStatus, calledTrick, isChallengeActive]);
 
-  React.useEffect(() => {
+  // ==================== EFFECTS ====================
+
+  useEffect(() => {
+    if (gameId > 0 && isOnline) {
+      console.log('Subscribing to game:', gameId);
+      const unsubscribe = subscribeToGame(gameId);
+      return unsubscribe;
+    }
+  }, [gameId, subscribeToGame, isOnline]);
+
+  useEffect(() => {
+    if (p1Action !== null && p2Action !== null && !isProcessingRound.current) {
+      const setterLanded = isCurrentSetter ? (p1Action === 'land') : (p2Action === 'land');
+      const receiverLanded = isCurrentSetter ? (p2Action === 'land') : (p1Action === 'land');
+      resolveRound(setterLanded, receiverLanded);
+    }
+  }, [p1Action, p2Action, isCurrentSetter, resolveRound]);
+
+  useEffect(() => {
     if (trickCallMessage && trickCallMessage.gameId === gameId) {
       console.log('Received trick call via WebSocket:', trickCallMessage);
-
       setCalledTrick(trickCallMessage.trickDetails);
       setCurrentMessage(`${trickCallMessage.setterUsername} called: ${trickCallMessage.trickDetails}`);
-
-      // Update whose set it is based on the setter
       if (trickCallMessage.setterUsername !== whosSet) {
         setWhosSet(trickCallMessage.setterUsername);
       }
     }
-  }, [trickCallMessage, gameId, whosSet]);
+  }, [trickCallMessage, gameId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (lastTryMessage && lastTryMessage.gameId === gameId) {
       console.log('Received last try message via WebSocket:', lastTryMessage);
-
       setLastTryPlayer(lastTryMessage.playerOnLastTry);
       setCurrentMessage(lastTryMessage.message);
     }
   }, [lastTryMessage, gameId]);
 
-  // Effect to handle incoming player actions via WebSocket
-  React.useEffect(() => {
-    if (playerActionMessage && playerActionMessage.gameId === gameId) {
-      console.log('Received player action via WebSocket:', playerActionMessage);
+  useEffect(() => {
+    // We need the current user to check against the message
+    if (!user) return;
 
-      // Determine which player acted based on userId
+    if (playerActionMessage && playerActionMessage.gameId === gameId) {
+
+      // Ignore actions that were originated by this user.
+      // This prevents the "boomerang" or "echo" bug on a single device
+      if (playerActionMessage.userId === user.id) {
+        console.log('Ignoring self-originated player action echo.');
+        return;
+      }
+
+      console.log('Received player action via WebSocket from other user:', playerActionMessage);
       const actingPlayer = playerActionMessage.userId === p1User?.userId ? p1Username : p2Username;
 
-      // Update the appropriate action state
       if (actingPlayer === p1Username) {
-        setP1Action(playerActionMessage.action);
+        setP1Action(prev => prev === null ? playerActionMessage.action : prev);
       } else {
-        setP2Action(playerActionMessage.action);
-      }
-
-      // Handle last try messaging
-      if (playerActionMessage.action === 'fail' && lastTryPlayer === actingPlayer) {
-        setCurrentMessage(`${lastTryPlayer} missed! They are on their last letter and get 2 attempts.`);
+        setP2Action(prev => prev === null ? playerActionMessage.action : prev);
       }
     }
-  }, [playerActionMessage, gameId, p1User, p2User, p1Username, p2Username, lastTryPlayer]);
+  }, [playerActionMessage, gameId, p1User, p2User, p1Username, p2Username, user]); // <-- Add user to dependency array
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (letterUpdateMessage && letterUpdateMessage.gameId === gameId) {
       console.log('Received letter update via WebSocket:', letterUpdateMessage);
 
-      // Update the appropriate player's letter count
       if (letterUpdateMessage.username === p1Username) {
         setP1Letters(letterUpdateMessage.newLetterCount);
-        console.log(`Updated ${p1Username} letters to ${letterUpdateMessage.newLetterCount}`);
       } else if (letterUpdateMessage.username === p2Username) {
         setP2Letters(letterUpdateMessage.newLetterCount);
-        console.log(`Updated ${p2Username} letters to ${letterUpdateMessage.newLetterCount}`);
       }
     }
   }, [letterUpdateMessage, gameId, p1Username, p2Username]);
 
-  React.useEffect(() => {
-    if (roundResolvedMessage && roundResolvedMessage.gameId === gameId) {
+  useEffect(() => {
+    if (roundResolvedMessage && roundResolvedMessage.gameId === gameId && !isProcessingRound.current) {
       console.log('Received round resolution via WebSocket:', roundResolvedMessage);
 
-      // Reset the round processed flag for the next round
-      roundProcessedRef.current = null;
-
-      // Reset trick and actions after round resolves
-      setCalledTrick("Awaiting set call...");
+      // Reset actions
       setP1Action(null);
       setP2Action(null);
+      setCalledTrick("Awaiting set call...");
 
       const { setterLanded, receiverLanded, setterUsername, receiverUsername } = roundResolvedMessage;
 
       if (setterLanded === receiverLanded) {
-        // Both land or both fail
         if (!setterLanded) {
-          // Both fail - set switches to receiver
           setWhosSet(receiverUsername);
           setCurrentMessage(`Both players missed. ${receiverUsername}'s set now.`);
         } else {
-          // Both land - setter keeps the set
-          setWhosSet(setterUsername); // Make sure setter keeps it
+          setWhosSet(setterUsername);
           setCurrentMessage(`Both players landed! ${setterUsername} keeps the set.`);
         }
       } else if (setterLanded && !receiverLanded) {
-        // Setter lands, receiver fails - setter keeps set
         setWhosSet(setterUsername);
         setCurrentMessage(`${setterUsername} landed it! ${setterUsername} keeps the set.`);
       } else if (!setterLanded && receiverLanded) {
-        // Setter fails, receiver lands - set switches
         setWhosSet(receiverUsername);
         setCurrentMessage(`${setterUsername} fell but ${receiverUsername} landed it. ${receiverUsername}'s set now.`);
       }
+
+      // Reset processing flag
+      lastProcessedRoundKey.current = null;
     }
   }, [roundResolvedMessage, gameId]);
 
-
+  // ==================== RENDER ====================
 
   return (
     <ImageBackground
       source={require('@/assets/images/background.png')}
       style={mainStyles.backgroundImage}
-      resizeMode="cover" // Or 'stretch', 'contain'
+      resizeMode="cover"
     >
       <ThemedView style={mainStyles.mainContainer}>
-        {/* 1. Initial Challenge Modal */}
         <GameChallengeModal
           isVisible={namesModalVisible}
           onClose={() => setNamesModalVisible(false)}
@@ -643,6 +763,22 @@ export default function GameScreen1v1() {
           contentContainerStyle={mainStyles.scrollViewContent}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Connection Status Banner */}
+          {!isOnline && (
+            <ThemedView style={{ backgroundColor: '#ff9800', padding: 8, marginBottom: 10, borderRadius: 4 }}>
+              <ThemedText style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>
+                ⚠️ OFFLINE MODE - Changes will sync when connection restores
+              </ThemedText>
+            </ThemedView>
+          )}
+
+          {/* Sync Status */}
+          {lastSyncTime && isOnline && (
+            <ThemedText style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 8 }}>
+              Last synced: {lastSyncTime.toLocaleTimeString()}
+            </ThemedText>
+          )}
+
           {/* Game Status Header */}
           <ThemedView style={mainStyles.statusCard}>
             <ThemedText style={mainStyles.statusTitle}>
@@ -696,6 +832,18 @@ export default function GameScreen1v1() {
             handleLastTryAction={handleLastTryAction}
           />
 
+          {/* Manual Sync Button (when offline or needs sync) */}
+          {!isOnline && gameId > 0 && (
+            <ThemedView style={{ marginVertical: 10 }}>
+              <CustomButton
+                title="RETRY SYNC"
+                onPress={syncGameState}
+                isPrimary={false}
+                disabled={syncInProgress}
+              />
+            </ThemedView>
+          )}
+
           {/* Save/Exit Button at the bottom */}
           {gameStatus === 'gameOver' && (
             <ThemedView style={mainStyles.gameOverCard}>
@@ -728,7 +876,7 @@ export default function GameScreen1v1() {
           </View>
         </Modal>
 
-        {/* 3. Call Trick Modal */}
+        {/* Call Trick Modal */}
         <TrickCallModal
           isVisible={setCallModalVisible}
           onClose={() => setSetCallModalVisible(false)}

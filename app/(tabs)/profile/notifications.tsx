@@ -53,6 +53,7 @@ export default function NotificationsScreen() {
 
     React.useEffect(() => {
         getChallengeNotifications();
+        console.log('Fetching challenge notifications on mount:', challengeNotifications);
     }, []);
 
     React.useEffect(() => {
@@ -97,7 +98,7 @@ export default function NotificationsScreen() {
     };
 
     const handleAcceptChallenge = (challengeId: number) => async () => {
-        const challengeToRespond = challengeNotifications.find(n => n.id === challengeId);
+        const challengeToRespond = (challengeNotifications || []).find(n => n.id === challengeId);
 
         console.log('Attempting to accept challenge:', challengeToRespond);
         if (loading) return;
@@ -137,11 +138,7 @@ export default function NotificationsScreen() {
 
                 await respondToChallenge('ACCEPTED', challengeId);
 
-                // Remove the accepted challenge from the local state immediately
                 setChallengeNotifications(prev => prev.filter(n => n.id !== challengeId));
-
-                // The context's respondToChallenge will handle navigation
-                // No need to show success alert here since navigation will happen
 
             } catch (error: any) {
                 console.error('Error accepting challenge:', error);
@@ -170,6 +167,7 @@ export default function NotificationsScreen() {
             </ThemedText>
 
             {challengeNotifications.map((notification) => (
+
                 <ThemedView key={notification.id} style={styles.card}>
                     <ThemedText style={styles.cardTitle}>
                         Challenge from {notification.challenger.username}

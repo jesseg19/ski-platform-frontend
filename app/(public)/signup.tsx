@@ -181,12 +181,12 @@ export default function AuthScreen() {
         >
           <FontAwesome name="google" size={24} color="#34A853" />
         </TouchableOpacity>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.socialIcon}
           onPress={() => socialLogin('facebook')}
         >
           <FontAwesome name="facebook" size={24} color="#4267B2" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
       <Text style={styles.termsText}>
         By signing up, our agree to our Terms & Conditions and Privacy Policy
