@@ -16,6 +16,7 @@ interface GameRoundActionsProps {
     getActionDisabled: (player: string) => boolean;
     handlePlayerAction: (player: GamePlayer, action: 'land' | 'fail') => void;
     handleLastTryAction: (action: 'land' | 'fail') => Promise<void>;
+    addLetterToPlayer: (player: string) => void;
 }
 interface GamePlayer {
     userId: number;
@@ -68,6 +69,7 @@ export const GameRoundActions: React.FC<GameRoundActionsProps> = ({
     getActionDisabled,
     handlePlayerAction,
     handleLastTryAction,
+    addLetterToPlayer,
 }) => {
     const isPlayerOnLastTry = lastTryPlayer === playerName;
     const isGameOver = gameStatus === 'gameOver';
@@ -107,7 +109,7 @@ export const GameRoundActions: React.FC<GameRoundActionsProps> = ({
         <ThemedView style={mainStyles.playerContainer}>
             <View style={mainStyles.playerHeader}>
                 <ThemedText style={mainStyles.playerNameText}>{playerName}</ThemedText>
-                <LetterDisplay lettersEarned={lettersEarned} />
+                <LetterDisplay lettersEarned={lettersEarned} onPress={() => addLetterToPlayer(playerName)} />
             </View>
             <View style={mainStyles.playerActions}>
                 {renderActionButtons()}

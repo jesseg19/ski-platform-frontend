@@ -13,6 +13,7 @@ export const Colors = {
   greenButton: '#85E34A',
   darkBlue: '#406080',
   textGrey: '#555',
+  lightGrey: '#CCC',
   darkText: '#333',
   white: '#FFFFFF',
   lightBlue: '#F0F8FF', // Light background/container color

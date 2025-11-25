@@ -14,9 +14,11 @@ import { useGame } from '../../context/GameContext';
 import { useChallenge } from '../../context/WebSocketProvider';
 
 import api from '@/auth/axios';
+import { GameTricksModal } from '@/components/GameTricksModal';
 import { mainStyles } from '@/constants/AppStyles';
 import { gameSyncService } from '../../services/GameSyncService';
 import { localGameDB } from '../../services/LocalGameDatabase';
+
 
 const GAME_LETTERS = ['S', 'K', 'I'];
 const MAX_LETTERS = GAME_LETTERS.length;
@@ -30,24 +32,27 @@ interface GamePlayer {
   playerNumber: 1 | 2;
 }
 
-interface GameTrick {
-  turnNumber: number;
-  setterId: number;
-  receiverId: number;
-  setterLanded: boolean;
-  receiverLanded: boolean;
-  trickDetails: string;
-}
-
 interface ActiveGameProps {
   gameId: number;
   currentTurnUserId: number | null;
   totalTricks: number;
   players: GamePlayer[];
-  tricks: GameTrick[];
+  tricks: any[];
   createdAt: string;
   lastActivityAt: string;
   status: string;
+}
+interface GameTrick {
+  turnNumber: number;
+  setterId: number;
+  setterUsername: string;
+  receiverId: number;
+  receiverUsername: string;
+  setterLanded: boolean;
+  receiverLanded: boolean;
+  letterAssignedToId: number | null;
+  letterAssignedToUsername: number | null;
+  trickDetails: string;
 }
 
 export default function GameScreen1v1() {
@@ -55,8 +60,7 @@ export default function GameScreen1v1() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { activeGame } = params;
-  const { modalVisible } = params;
+  const { activeGame, modalVisible } = params;
 
   const {
     isConnected,
@@ -64,44 +68,45 @@ export default function GameScreen1v1() {
     publishPlayerAction,
     publishTrickCall,
     publishLastTry,
+    sentChallengeStatus,
+    resetSentChallenge,
     playerActionMessage,
     trickCallMessage,
     letterUpdateMessage,
     roundResolvedMessage,
     lastTryMessage,
+    publishLetterUpdate,
   } = useChallenge();
 
   // Connection state
   const [isOnline, setIsOnline] = useState(true);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
 
-  // Critical refs to prevent race conditions
+  // Critical refs
   const isProcessingRound = useRef(false);
   const currentRoundNumber = useRef<number>(1);
   const lastProcessedRoundKey = useRef<string | null>(null);
-  const actionDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Parse initial game props
   let initialGameProps: ActiveGameProps | null = null;
   if (activeGame && typeof activeGame === 'string') {
     try {
       initialGameProps = JSON.parse(activeGame) as ActiveGameProps;
-      console.log('Active Game Loaded from Params:', initialGameProps.gameId);
+      console.log('Active Game Loaded:', initialGameProps.gameId);
     } catch (e) {
       console.error("Failed to parse active game data:", e);
     }
   }
 
-  // State initialization function
+  // State initialization helper
   const getInitialState = (props: ActiveGameProps | null) => {
-    const currentUser = user;
-    const currentUserUsername = currentUser?.username || 'Player 1';
+    const currentUserUsername = user?.username || 'Player 1';
 
+    let gameId = -1;
     let p1Username = currentUserUsername;
     let p2Username = '';
-    let p1User = null;
-    let p2User = null;
+    let p1User: GamePlayer | null = null;
+    let p2User: GamePlayer | null = null;
     let whosSet = currentUserUsername;
     let p1Letters = 0;
     let p2Letters = 0;
@@ -109,83 +114,56 @@ export default function GameScreen1v1() {
     let calledTrick = 'Awaiting set call...';
     let currentMessage = 'Welcome to Ski Platform!';
 
-    if (props && currentUser) {
-      const userGameData = props.players.find(p => p.userId === currentUser.id);
-      const opponentGameData = props.players.find(p => p.userId !== currentUser.id);
+    if (props && user) {
+      const player1Data = props.players.find(p => p.playerNumber === 1);
+      const player2Data = props.players.find(p => p.playerNumber === 2);
 
-      if (userGameData && opponentGameData) {
-        p1Username = userGameData.username;
-        p2Username = opponentGameData.username;
-        p1User = userGameData;
-        p2User = opponentGameData;
-        p1Letters = userGameData.finalLetters;
-        p2Letters = opponentGameData.finalLetters;
+      if (player1Data && player2Data) {
+        gameId = props.gameId;
+        p1User = player1Data;
+        p2User = player2Data;
+        p1Username = player1Data.username;
+        p2Username = player2Data.username;
+        p1Letters = player1Data.finalLetters;
+        p2Letters = player2Data.finalLetters;
+
+        // Determine who sets
+        if (props.tricks && props.tricks.length > 0) {
+          const lastTrick = props.tricks[props.tricks.length - 1];
+          const lastSetter = props.players.find(p => p.userId === lastTrick.setterId);
+          whosSet = lastSetter ? lastSetter.username : p1Username;
+        } else if (props.currentTurnUserId) {
+          const starterUser = props.players.find(p => p.userId === props.currentTurnUserId);
+          whosSet = starterUser ? starterUser.username : p1Username;
+        }
+
+        namesModalVisible = false;
+        currentMessage = `Game with ${p1Username} vs ${p2Username}`;
+        currentRoundNumber.current = props.tricks.length + 1;
       }
-
-      const lastTrick = props.tricks[props.tricks.length - 1];
-      const initialWhosSet = lastTrick
-        ? (lastTrick.setterId === currentUser.id ? p1Username : p2Username)
-        : p1Username;
-
-      whosSet = initialWhosSet;
-      namesModalVisible = false;
-      calledTrick = 'Awaiting set call...';
-      currentMessage = `Resumed game with ${p2Username}.`;
-
-      // Set current round number
-      currentRoundNumber.current = props.tricks.length + 1;
-
-      return {
-        gameId: props.gameId,
-        p1Username,
-        p1User,
-        p2User,
-        p2Username,
-        whosSet,
-        p1Letters,
-        p2Letters,
-        calledTrick,
-        currentMessage,
-        namesModalVisible,
-        isChallengeActive: false,
-      };
     }
 
     return {
-      gameId: -1,
-      p1Username: currentUserUsername,
-      p1User: null,
-      p2User: null,
-      p2Username: '',
-      whosSet: currentUserUsername,
-      p1Letters: 0,
-      p2Letters: 0,
+      gameId,
+      p1Username,
+      p1User,
+      p2User,
+      p2Username,
+      whosSet,
+      p1Letters,
+      p2Letters,
       calledTrick,
       currentMessage,
-      namesModalVisible: true,
-      isChallengeActive: false,
+      namesModalVisible,
     };
   };
 
   const initialState = getInitialState(initialGameProps);
 
-  console.log('Initial Game State:', initialState);
   // State declarations
   const [gameId, setGameId] = useState<-1 | number>(initialState.gameId);
   const [namesModalVisible, setNamesModalVisible] = useState(() => {
-    // If the 'modalVisible' param is "false", (e.g., from accepting a challenge)
-    //    DO NOT show the modal.
-    if (modalVisible === "false") {
-      return false;
-    }
-
-    // If we are loading an existing game (initialGameProps exists)
-    //    and the param wasn't set, STILL don't show the modal.
-    if (initialGameProps) {
-      return false;
-    }
-
-    // Otherwise, it must be a brand new game, so show the modal.
+    if (modalVisible === "false" || initialGameProps) return false;
     return true;
   });
   const [p1Username, setP1Username] = useState(initialState.p1Username);
@@ -197,7 +175,6 @@ export default function GameScreen1v1() {
   const [p2Letters, setP2Letters] = useState(initialState.p2Letters);
   const [calledTrick, setCalledTrick] = useState(initialState.calledTrick);
   const [currentMessage, setCurrentMessage] = useState(initialState.currentMessage);
-  const [isChallengeActive, setIsChallengeActive] = useState(initialState.isChallengeActive);
 
   const [setCallModalVisible, setSetCallModalVisible] = useState(false);
   const [p1Action, setP1Action] = useState<'land' | 'fail' | null>(null);
@@ -205,25 +182,63 @@ export default function GameScreen1v1() {
   const [lastTryPlayer, setLastTryPlayer] = useState<string | null>(null);
   const [gameStatus, setGameStatus] = useState<'playing' | 'gameOver'>('playing');
   const [pauseOrQuitModalVisible, setPauseOrQuitModalVisible] = useState(false);
+  const [tricks, setTricks] = useState<GameTrick[]>([]);
+  const [gameTricksModalVisible, gameTricksModalVisibleSet] = useState(false);
 
-  const otherPlayerName = whosSet === p1Username ? p2Username : p1Username;
   const isCurrentSetter = whosSet === p1Username;
 
+  // ==================== CHALLENGE ACCEPTANCE ====================
+  useEffect(() => {
+    if (sentChallengeStatus && sentChallengeStatus.status === 'ACCEPTED') {
+      console.log('Challenge accepted! Fetching game data...');
 
+      const gameId = sentChallengeStatus.gameId;
+      if (gameId) {
+        api.get(`/api/games/${gameId}`)
+          .then(response => {
+            const gameData: ActiveGameProps = response.data;
+            const player1 = gameData.players.find(p => p.playerNumber === 1);
+            const player2 = gameData.players.find(p => p.playerNumber === 2);
+
+            if (player1 && player2) {
+              setGameId(gameData.gameId);
+              setP1User(player1);
+              setP2User(player2);
+              setP1Username(player1.username);
+              setP2Username(player2.username);
+              setP1Letters(player1.finalLetters);
+              setP2Letters(player2.finalLetters);
+
+              const starterUser = gameData.players.find(p => p.userId === gameData.currentTurnUserId);
+              const starter = starterUser ? starterUser.username : player1.username;
+              setWhosSet(starter);
+
+              setCalledTrick('Awaiting set call...');
+              setCurrentMessage(`Game started! ${starter} sets first.`);
+              setNamesModalVisible(false);
+
+              currentRoundNumber.current = 1;
+              resetGameKey();
+            }
+
+            resetSentChallenge();
+          })
+          .catch(error => {
+            console.error('Failed to fetch game data:', error);
+            Alert.alert('Error', 'Failed to load game data');
+          });
+      }
+    }
+  }, [sentChallengeStatus, resetSentChallenge, resetGameKey]);
 
   // ==================== NETWORK MONITORING ====================
-
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       const online = state.isConnected || false;
       setIsOnline(online);
 
-      // Only sync if we have pending actions and just came back online
       if (online && gameId > 0 && !syncInProgress) {
-        // Delay sync to avoid race conditions
-        setTimeout(() => {
-          syncGameState();
-        }, 1000);
+        setTimeout(() => syncGameState(), 1000);
       }
     });
 
@@ -231,7 +246,6 @@ export default function GameScreen1v1() {
   }, [gameId]);
 
   // ==================== LOCAL STORAGE & SYNC ====================
-
   const saveLocalGameState = useCallback(async () => {
     if (gameId <= 0) return;
 
@@ -262,28 +276,22 @@ export default function GameScreen1v1() {
     try {
       const result = await gameSyncService.syncGame(gameId, user.username);
 
-      if (result.success && result.syncedActions > 0) {
-        setLastSyncTime(new Date());
-
-        // Only show alert if there were actual conflicts (not just normal syncs)
-        if (result.conflicts && result.conflicts.length > 0) {
-          Alert.alert(
-            'Game Synced',
-            `Your game was synced. ${result.conflicts.length} conflict(s) resolved.`,
-            [{ text: 'OK' }]
-          );
-        }
-
+      if (result.success) {
         // Reload state from server
         const response = await api.get(`/api/games/${gameId}`);
-        const serverState = response.data;
+        const serverState: ActiveGameProps = response.data;
 
-        // Update local state with server data
-        const p1 = serverState.players.find((p: any) => p.username === p1Username);
-        const p2 = serverState.players.find((p: any) => p.username === p2Username);
+        const player1 = serverState.players.find(p => p.playerNumber === 1);
+        const player2 = serverState.players.find(p => p.playerNumber === 2);
 
-        if (p1) setP1Letters(p1.finalLetters);
-        if (p2) setP2Letters(p2.finalLetters);
+        if (player1) {
+          setP1Letters(player1.finalLetters);
+          setP1User(player1);
+        }
+        if (player2) {
+          setP2Letters(player2.finalLetters);
+          setP2User(player2);
+        }
 
         currentRoundNumber.current = serverState.tricks.length + 1;
       }
@@ -292,56 +300,45 @@ export default function GameScreen1v1() {
     } finally {
       setSyncInProgress(false);
     }
-  }, [gameId, user, syncInProgress, p1Username, p2Username]);
+  }, [gameId, user, syncInProgress]);
 
   // Debounced save state
   useEffect(() => {
     const timer = setTimeout(() => {
       saveLocalGameState();
-    }, 500); // Debounce by 500ms
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [p1Letters, p2Letters, whosSet, calledTrick, currentMessage]);
 
   // ==================== GAME LOGIC ====================
+  const addLetterToPlayer = (player: string) => {
+    if (gameStatus === 'gameOver') return;
+    setCurrentMessage("Letter added, trick skipped");
+    saveRound(gameId, whosSet, calledTrick, null, null, player);
+  };
 
   const saveRound = useCallback(async (
     gameId: number,
     setter: string,
     trick: string,
     setterLanded: boolean | null,
-    receiverLanded: boolean,
+    receiverLanded: boolean | null,
     letterGivenTo: string | null
   ) => {
     const receiverName = setter === p1Username ? p2Username : p1Username;
-    const roundNumToSave = currentRoundNumber.current; // Capture round number at start
-
-    // --- Helper function to save action locally ---
-    const saveLocally = async (reason: string) => {
-      console.log(`Round ${roundNumToSave} saving locally (${reason})`);
-      try {
-        await gameSyncService.saveActionLocally(
-          gameId,
-          roundNumToSave,
-          setter,
-          receiverName,
-          trick,
-          setterLanded,
-          receiverLanded,
-          letterGivenTo,
-          user?.username || p1Username
-        );
-      } catch (error) {
-        console.error("Failed to save action locally:", error);
-      }
-    };
-
-    // --- Main Save Logic ---
+    const roundNumToSave = currentRoundNumber.current;
+    if (letterGivenTo === p1Username && p1Letters === MAX_LETTERS - 1) {
+      setGameStatus('gameOver');
+      setCurrentMessage(`GAME OVER! ${p2Username} WINS!`);
+    }
+    if (letterGivenTo === p2Username && p2Letters === MAX_LETTERS - 1) {
+      setGameStatus('gameOver');
+      setCurrentMessage(`GAME OVER! ${p1Username} WINS!`);
+    }
     try {
       if (isOnline) {
-        // --- ONLINE PATH ---
         try {
-          // 1. Try to sync to server
           await api.post(`/api/games/${gameId}/resolveRound`, {
             setterUsername: setter,
             receiverUsername: receiverName,
@@ -352,59 +349,68 @@ export default function GameScreen1v1() {
             inputByUsername: user?.username || p1Username,
             clientTimestamp: Date.now(),
           });
-          console.log(`Round ${roundNumToSave} synced to server successfully.`);
 
-          // DO NOT save locally here. The server has it.
-          // This prevents the sync conflict alert.
+          console.log(`Round ${roundNumToSave} synced to server`);
 
+          const unsyncedActions = await localGameDB.getUnsyncedActions(gameId);
+          if (unsyncedActions.length > 0) {
+            const lastAction = unsyncedActions[unsyncedActions.length - 1];
+            if (lastAction.id) {
+              await localGameDB.markActionSynced(lastAction.id);
+            }
+          }
         } catch (error: any) {
-          // 2. Server sync FAILED (network drop, 500 error, etc.)
-          // Save locally as a fallback.
-          console.error(`Failed to sync round ${roundNumToSave} to server, saving locally:`, error);
-          await saveLocally("server sync failed");
-        }
-      } else {
-        // --- OFFLINE PATH ---
-        await saveLocally("user is offline");
-      }
-
-      // --- COMMON LOGIC (Update UI/State) ---
-
-      // Increment round number *after* successful processing
-      currentRoundNumber.current += 1;
-
-      // Optimistically update letter count in the UI.
-      // We removed the redundant `api.put` call. The server-side 
-      // `resolveRound` endpoint should be the source of truth for 
-      // letter updates, which will be broadcast via WebSocket.
-      if (letterGivenTo) {
-        const playerToGiveLetter = letterGivenTo === p1Username ? p1User : letterGivenTo === p2Username ? p2User : null;
-        const playerLetter = playerToGiveLetter === p1User ? p1Letters : p2Letters;
-
-        if (playerToGiveLetter) {
-          const newLetterCount = playerLetter + 1;
-
-          // Update local UI state
-          if (letterGivenTo === p1Username) {
-            setP1Letters(newLetterCount);
+          if (error.response?.status === 200 || error.response?.data === "Round already resolved") {
+            console.log("Round already resolved");
           } else {
-            setP2Letters(newLetterCount);
+            console.error("Failed to sync round:", error);
+            await gameSyncService.saveActionLocally(
+              gameId, roundNumToSave, setter, receiverName,
+              trick, setterLanded, receiverLanded, letterGivenTo,
+              user?.username || p1Username
+            );
           }
         }
+      } else {
+        await gameSyncService.saveActionLocally(
+          gameId, roundNumToSave, setter, receiverName,
+          trick, setterLanded, receiverLanded, letterGivenTo,
+          user?.username || p1Username
+        );
       }
 
+      currentRoundNumber.current += 1;
+
+      // Update letter count locally
+      if (letterGivenTo) {
+        let newCount = 0;
+        let userId = 0;
+
+        if (letterGivenTo === p1Username && p1Letters < MAX_LETTERS) {
+          newCount = p1Letters + 1;
+          userId = p1User?.userId || 0;
+          setP1Letters(newCount);
+        } else if (letterGivenTo === p2Username && p2Letters < MAX_LETTERS) {
+          newCount = p2Letters + 1;
+          userId = p2User?.userId || 0;
+          setP2Letters(newCount);
+        }
+
+        if (isOnline && userId > 0) {
+          publishLetterUpdate(gameId, userId, letterGivenTo, newCount);
+        }
+      }
     } catch (error) {
-      console.error(`Failed to save round ${roundNumToSave}:`, error);
+      console.error("Failed to save round:", error);
       Alert.alert("Error", "Failed to save game progress.");
     }
-  }, [gameId, p1Username, p2Username, p1User, p2User, p1Letters, p2Letters, user, isOnline]);
+  }, [gameId, p1Username, p2Username, user, isOnline, publishLetterUpdate, p1Letters, p2Letters, p1User, p2User]);
 
   const resolveRound = useCallback(async (setterLanded: boolean, receiverLanded: boolean) => {
-    // Prevent duplicate processing
     const roundKey = `${gameId}-${currentRoundNumber.current}-${calledTrick}-${setterLanded}-${receiverLanded}`;
 
     if (isProcessingRound.current || roundKey === lastProcessedRoundKey.current) {
-      console.log('Round already being processed or already processed, skipping...');
+      console.log('Round already being processed');
       return;
     }
 
@@ -416,7 +422,6 @@ export default function GameScreen1v1() {
       const receiverName = whosSet === p1Username ? p2Username : p1Username;
       const currentTrick = calledTrick;
 
-      // Reset UI immediately to prevent double-clicks
       setP1Action(null);
       setP2Action(null);
 
@@ -425,32 +430,30 @@ export default function GameScreen1v1() {
         playerWhoGotLetter = null;
         await saveRound(gameId, whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
 
-        // Update UI based on outcome
         if (!setterLanded) {
           setWhosSet(receiverName);
-          setCurrentMessage(`Both players missed. ${receiverName}'s set now.`);
+          setCurrentMessage(`Both missed. ${receiverName}'s set now.`);
         } else {
-          setCurrentMessage(`Both players landed! ${whosSet} keeps the set.`);
+          setCurrentMessage(`Both landed! ${whosSet} keeps the set.`);
         }
         setCalledTrick("Awaiting set call...");
       }
       // Setter lands, receiver fails
       else if (setterLanded && !receiverLanded) {
-        const receiverLetters = whosSet === p1Username ? p2Letters : p1Letters;
+        const receiverLetters = receiverName === p1Username ? p1Letters : p2Letters;
 
         if (!isLastTry(receiverLetters)) {
           playerWhoGotLetter = receiverName;
           await saveRound(gameId, whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
-          setCurrentMessage(`${whosSet} landed it! ${whosSet} keeps the set.`);
+          setCurrentMessage(`${whosSet} landed! ${whosSet} keeps the set.`);
           setCalledTrick("Awaiting set call...");
         } else {
           setLastTryPlayer(receiverName);
-          const lastTryMsg = `${receiverName} missed! They are on their last letter and get 2 attempts.`;
+          const lastTryMsg = `${receiverName} missed! Last letter - 2 attempts.`;
           setCurrentMessage(lastTryMsg);
           if (isOnline) {
             publishLastTry(gameId, receiverName, lastTryMsg);
           }
-          // Don't reset trick yet - they need to see what they're attempting
           return;
         }
       }
@@ -462,23 +465,22 @@ export default function GameScreen1v1() {
           playerWhoGotLetter = whosSet;
           await saveRound(gameId, whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
           setWhosSet(receiverName);
-          setCurrentMessage(`${whosSet} fell but ${receiverName} landed it. ${receiverName}'s set now.`);
+          setCurrentMessage(`${whosSet} fell. ${receiverName}'s set now.`);
           setCalledTrick("Awaiting set call...");
         } else {
           setLastTryPlayer(whosSet);
-          const lastTryMsg = `${whosSet} fell! As the setter, they get a 2nd try.`;
+          const lastTryMsg = `${whosSet} fell! Setter gets 2nd try.`;
           setCurrentMessage(lastTryMsg);
           if (isOnline) {
             publishLastTry(gameId, whosSet, lastTryMsg);
           }
-          // Don't reset trick yet
           return;
         }
       }
     } finally {
-      {
+      setTimeout(() => {
         isProcessingRound.current = false;
-      };
+      }, 1000);
     }
   }, [p1Letters, p2Letters, whosSet, p1Username, p2Username, gameId, calledTrick, publishLastTry, saveRound, isOnline]);
 
@@ -512,7 +514,7 @@ export default function GameScreen1v1() {
         setLastTryPlayer(null);
         const newSetter = isSetterOnLastTry ? receiverName : currentSetter;
         setWhosSet(newSetter);
-        setCurrentMessage(`${playerOnLastTry} survived! ${newSetter}'s set now.`);
+        setCurrentMessage(`${playerOnLastTry} survived! ${newSetter}'s set.`);
         setCalledTrick("Awaiting set call...");
       } else {
         setGameStatus('gameOver');
@@ -529,30 +531,25 @@ export default function GameScreen1v1() {
         setCalledTrick("Game Over");
       }
     } finally {
-      isProcessingRound.current = false;
+      setTimeout(() => {
+        isProcessingRound.current = false;
+      }, 500);
     }
   };
 
   // ==================== HANDLERS ====================
-
   const handlePlayerAction = useCallback((player: GamePlayer, action: 'land' | 'fail') => {
-    // Debounce to prevent double-clicks
-    if (actionDebounceTimer.current) {
-      clearTimeout(actionDebounceTimer.current);
+    // Immediately set local action
+    if (player.username === p1Username) {
+      setP1Action(prev => prev === null ? action : prev);
+    } else {
+      setP2Action(prev => prev === null ? action : prev);
     }
 
-    actionDebounceTimer.current = setTimeout(() => {
-      if (player.username === p1Username) {
-        setP1Action(prev => prev === null ? action : prev);
-      } else {
-        setP2Action(prev => prev === null ? action : prev);
-      }
-
-      // Publish via WebSocket if online
-      if (gameId > 0 && user && isOnline) {
-        publishPlayerAction(gameId, user.id, action);
-      }
-    }, 300); // 300ms debounce
+    // Publish to other player
+    if (gameId > 0 && user && isOnline) {
+      publishPlayerAction(gameId, player.userId, action);
+    }
   }, [p1Username, gameId, user, publishPlayerAction, isOnline]);
 
   const handleSaveGame = async () => {
@@ -569,7 +566,7 @@ export default function GameScreen1v1() {
         });
 
         await localGameDB.clearGameData(gameId);
-        router.navigate('/(tabs)/game');
+        router.push('/(tabs)/game');
       } catch (error) {
         console.error("Failed to save game result:", error);
         Alert.alert("Error", "Failed to save game result.");
@@ -590,8 +587,8 @@ export default function GameScreen1v1() {
   const handleChallengeStart = useCallback((opponentUsername: string) => {
     setP2Username(opponentUsername);
     setNamesModalVisible(false);
-    setCurrentMessage(`Challenge sent to ${opponentUsername}. Waiting for acceptance...`);
-    setIsChallengeActive(true);
+    setCurrentMessage(`Challenge sent to ${opponentUsername}. Waiting...`);
+    setCalledTrick(`Waiting for ${opponentUsername} to accept...`);
   }, []);
 
   const handleBackToMenu = useCallback(() => {
@@ -623,19 +620,30 @@ export default function GameScreen1v1() {
 
   const getActionDisabled = useCallback((player: string) => {
     const action = player === p1Username ? p1Action : p2Action;
-    const isAwaitingSet = calledTrick.trim() === 'Awaiting set call...';
+    const isAwaitingSet = calledTrick.trim() === 'Awaiting set call...' || gameId < 0;
     return (
       action !== null ||
       lastTryPlayer !== null ||
       gameStatus === 'gameOver' ||
       isAwaitingSet ||
-      isChallengeActive ||
       isProcessingRound.current
     );
-  }, [p1Username, p1Action, p2Action, lastTryPlayer, gameStatus, calledTrick, isChallengeActive]);
+  }, [p1Username, p1Action, p2Action, lastTryPlayer, gameStatus, calledTrick]);
+
+  const getAllGameTricks = useCallback(async () => {
+    if (gameId <= 0) return [];
+    try {
+      const response = await api.get(`/api/profiles/${gameId}/tricks`);
+      setTricks(response.data);
+      gameTricksModalVisibleSet(true);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch game tricks:', error);
+      return [];
+    }
+  }, [gameId]);
 
   // ==================== EFFECTS ====================
-
   useEffect(() => {
     if (gameId > 0 && isOnline) {
       console.log('Subscribing to game:', gameId);
@@ -654,64 +662,62 @@ export default function GameScreen1v1() {
 
   useEffect(() => {
     if (trickCallMessage && trickCallMessage.gameId === gameId) {
-      console.log('Received trick call via WebSocket:', trickCallMessage);
+      console.log('Received trick call:', trickCallMessage);
       setCalledTrick(trickCallMessage.trickDetails);
       setCurrentMessage(`${trickCallMessage.setterUsername} called: ${trickCallMessage.trickDetails}`);
-      if (trickCallMessage.setterUsername !== whosSet) {
-        setWhosSet(trickCallMessage.setterUsername);
-      }
+      setWhosSet(trickCallMessage.setterUsername);
+
+      // Save state immediately
+      saveLocalGameState();
     }
   }, [trickCallMessage, gameId]);
 
   useEffect(() => {
     if (lastTryMessage && lastTryMessage.gameId === gameId) {
-      console.log('Received last try message via WebSocket:', lastTryMessage);
+      console.log('Received last try message:', lastTryMessage);
       setLastTryPlayer(lastTryMessage.playerOnLastTry);
       setCurrentMessage(lastTryMessage.message);
     }
   }, [lastTryMessage, gameId]);
 
-  useEffect(() => {
-    // We need the current user to check against the message
-    if (!user) return;
+  // useEffect(() => {
+  //   if (!user) return;
 
-    if (playerActionMessage && playerActionMessage.gameId === gameId) {
+  //   if (playerActionMessage && playerActionMessage.gameId === gameId) {
+  //     if (playerActionMessage.userId === user.id) return;
 
-      // Ignore actions that were originated by this user.
-      // This prevents the "boomerang" or "echo" bug on a single device
-      if (playerActionMessage.userId === user.id) {
-        console.log('Ignoring self-originated player action echo.');
-        return;
-      }
+  //     console.log('Received player action from other user:', playerActionMessage);
 
-      console.log('Received player action via WebSocket from other user:', playerActionMessage);
-      const actingPlayer = playerActionMessage.userId === p1User?.userId ? p1Username : p2Username;
+  //     // Map userId to correct player using playerNumber
+  //     const isPlayer1Action = playerActionMessage.userId === p1User?.userId;
 
-      if (actingPlayer === p1Username) {
-        setP1Action(prev => prev === null ? playerActionMessage.action : prev);
-      } else {
-        setP2Action(prev => prev === null ? playerActionMessage.action : prev);
-      }
-    }
-  }, [playerActionMessage, gameId, p1User, p2User, p1Username, p2Username, user]); // <-- Add user to dependency array
+  //     if (isPlayer1Action) {
+  //       setP1Action(prev => prev === null ? playerActionMessage.action : prev);
+  //     } else {
+  //       setP2Action(prev => prev === null ? playerActionMessage.action : prev);
+  //     }
+  //   }
+  // }, [playerActionMessage, gameId, p1User, p2User, user]);
 
   useEffect(() => {
     if (letterUpdateMessage && letterUpdateMessage.gameId === gameId) {
-      console.log('Received letter update via WebSocket:', letterUpdateMessage);
+      console.log('Received letter update:', letterUpdateMessage);
 
       if (letterUpdateMessage.username === p1Username) {
         setP1Letters(letterUpdateMessage.newLetterCount);
       } else if (letterUpdateMessage.username === p2Username) {
         setP2Letters(letterUpdateMessage.newLetterCount);
       }
+
+      // Save state immediately
+      saveLocalGameState();
     }
   }, [letterUpdateMessage, gameId, p1Username, p2Username]);
 
   useEffect(() => {
     if (roundResolvedMessage && roundResolvedMessage.gameId === gameId && !isProcessingRound.current) {
-      console.log('Received round resolution via WebSocket:', roundResolvedMessage);
+      console.log('Received round resolution:', roundResolvedMessage);
 
-      // Reset actions
       setP1Action(null);
       setP2Action(null);
       setCalledTrick("Awaiting set call...");
@@ -721,26 +727,27 @@ export default function GameScreen1v1() {
       if (setterLanded === receiverLanded) {
         if (!setterLanded) {
           setWhosSet(receiverUsername);
-          setCurrentMessage(`Both players missed. ${receiverUsername}'s set now.`);
+          setCurrentMessage(`Both missed. ${receiverUsername}'s set now.`);
         } else {
           setWhosSet(setterUsername);
-          setCurrentMessage(`Both players landed! ${setterUsername} keeps the set.`);
+          setCurrentMessage(`Both landed! ${setterUsername} keeps set.`);
         }
       } else if (setterLanded && !receiverLanded) {
         setWhosSet(setterUsername);
-        setCurrentMessage(`${setterUsername} landed it! ${setterUsername} keeps the set.`);
+        setCurrentMessage(`${setterUsername} landed! ${setterUsername} keeps the set.`);
       } else if (!setterLanded && receiverLanded) {
         setWhosSet(receiverUsername);
-        setCurrentMessage(`${setterUsername} fell but ${receiverUsername} landed it. ${receiverUsername}'s set now.`);
+        setCurrentMessage(`${setterUsername} fell. ${receiverUsername}'s set now.`);
       }
 
-      // Reset processing flag
       lastProcessedRoundKey.current = null;
+
+      // Save state immediately
+      saveLocalGameState();
     }
   }, [roundResolvedMessage, gameId]);
 
   // ==================== RENDER ====================
-
   return (
     <ImageBackground
       source={require('@/assets/images/background.png')}
@@ -755,7 +762,7 @@ export default function GameScreen1v1() {
           p2User={p2User || { userId: 0, username: '', finalLetters: 0, playerNumber: 2 }}
           setP2User={setP2User}
           onChallengeStart={handleChallengeStart}
-          onBackToMenu={() => router.navigate('/(tabs)/game')}
+          onBackToMenu={() => { router.navigate('/(tabs)/game'); setNamesModalVisible(false); }}
         />
 
         <ScrollView
@@ -763,7 +770,6 @@ export default function GameScreen1v1() {
           contentContainerStyle={mainStyles.scrollViewContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Connection Status Banner */}
           {!isOnline && (
             <ThemedView style={{ backgroundColor: '#ff9800', padding: 8, marginBottom: 10, borderRadius: 4 }}>
               <ThemedText style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>
@@ -772,41 +778,31 @@ export default function GameScreen1v1() {
             </ThemedView>
           )}
 
-          {/* Sync Status */}
-          {lastSyncTime && isOnline && (
-            <ThemedText style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 8 }}>
-              Last synced: {lastSyncTime.toLocaleTimeString()}
-            </ThemedText>
-          )}
-
-          {/* Game Status Header */}
           <ThemedView style={mainStyles.statusCard}>
             <ThemedText style={mainStyles.statusTitle}>
               <Text style={{ fontWeight: 'bold' }}>{whosSet}</Text>&apos;s Set
             </ThemedText>
             <TouchableOpacity
-              style={[mainStyles.callSetButton]}
+              style={[mainStyles.callSetButton, { opacity: gameStatus === 'gameOver' ? 0.5 : 1 }]}
               onPress={() => setSetCallModalVisible(true)}
-              disabled={isChallengeActive || calledTrick !== 'Awaiting set call...' || gameStatus === 'gameOver'}
+              disabled={gameStatus === 'gameOver'}
             >
               <ThemedText style={mainStyles.callSetButtonText}>
-                {isChallengeActive ? 'WAITING...' : (calledTrick === 'Awaiting set call...' ? 'CALL NEW TRICK' : 'TRICK SET')}
+                {/* {calledTrick === 'Awaiting set call...' ? 'CALL NEW TRICK' : 'TRICK SET'} */}
+                CALL NEW TRICK
               </ThemedText>
             </TouchableOpacity>
           </ThemedView>
 
-          {/* Trick Display */}
           <ThemedView style={mainStyles.trickDisplayCard}>
             <ThemedText style={mainStyles.trickLabel}>Current Trick:</ThemedText>
             <ThemedText style={mainStyles.trickValue}>{calledTrick}</ThemedText>
           </ThemedView>
 
-          {/* Message Card */}
           <ThemedView style={mainStyles.messageCard}>
             <ThemedText style={mainStyles.messageText}>{currentMessage}</ThemedText>
           </ThemedView>
 
-          {/* Player 1 Actions */}
           <GameRoundActions
             player={p1User || { userId: 0, username: p1Username, finalLetters: p1Letters, playerNumber: 1 }}
             playerName={p1Username}
@@ -817,9 +813,9 @@ export default function GameScreen1v1() {
             getActionDisabled={getActionDisabled}
             handlePlayerAction={handlePlayerAction}
             handleLastTryAction={handleLastTryAction}
+            addLetterToPlayer={addLetterToPlayer}
           />
 
-          {/* Player 2 Actions */}
           <GameRoundActions
             player={p2User || { userId: 0, username: p2Username, finalLetters: p2Letters, playerNumber: 2 }}
             playerName={p2Username}
@@ -830,9 +826,9 @@ export default function GameScreen1v1() {
             getActionDisabled={getActionDisabled}
             handlePlayerAction={handlePlayerAction}
             handleLastTryAction={handleLastTryAction}
+            addLetterToPlayer={addLetterToPlayer}
           />
 
-          {/* Manual Sync Button (when offline or needs sync) */}
           {!isOnline && gameId > 0 && (
             <ThemedView style={{ marginVertical: 10 }}>
               <CustomButton
@@ -844,7 +840,6 @@ export default function GameScreen1v1() {
             </ThemedView>
           )}
 
-          {/* Save/Exit Button at the bottom */}
           {gameStatus === 'gameOver' && (
             <ThemedView style={mainStyles.gameOverCard}>
               <CustomButton title="FINISH & SAVE GAME RESULT" onPress={handleSaveGame} isPrimary={true} />
@@ -856,6 +851,21 @@ export default function GameScreen1v1() {
               <ThemedText style={mainStyles.backButtonText}>Exit Game</ThemedText>
             </TouchableOpacity>
           </View>
+
+          {/* button to show all previously done tricks in this game */}
+          <CustomButton title="View Trick History" onPress={() => {
+            getAllGameTricks();
+          }} isPrimary={false} />
+
+          <GameTricksModal
+            isVisible={gameTricksModalVisible}
+            onClose={() => gameTricksModalVisibleSet(false)}
+            tricks={tricks}
+            p1Username={p1Username}
+            p2Username={p2Username}
+          />
+
+
         </ScrollView>
 
         <Modal
@@ -871,16 +881,16 @@ export default function GameScreen1v1() {
               <View style={mainStyles.modalButtons}>
                 <CustomButton title="Pause" onPress={handlePauseGame} />
                 <CustomButton title="Quit" onPress={handleQuitGame} />
+                <CustomButton title="Back to game" onPress={() => setPauseOrQuitModalVisible(false)} isPrimary={false} />
               </View>
             </View>
           </View>
         </Modal>
 
-        {/* Call Trick Modal */}
         <TrickCallModal
           isVisible={setCallModalVisible}
           onClose={() => setSetCallModalVisible(false)}
-          otherPlayerName={otherPlayerName}
+          currentTrick={calledTrick}
           onTrickCall={handleTrickCall}
         />
       </ThemedView>

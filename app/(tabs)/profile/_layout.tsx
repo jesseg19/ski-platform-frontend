@@ -11,6 +11,7 @@ export default function ProfileLayout() {
                 <Stack.Screen name="notifications" options={{ title: 'Notifications', headerShown: false }} />
                 <Stack.Screen name="recentGames" options={{ title: 'Recent Games', headerShown: false }} />
                 <Stack.Screen name="friends" options={{ title: 'Friends', headerShown: false }} />
+                <Stack.Screen name="OtherPlayerProfileScreen" options={{ title: 'Player Profile', headerShown: false }} />
             </Stack>
         </ChallengeProvider>
     );

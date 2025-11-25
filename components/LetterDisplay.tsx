@@ -34,9 +34,10 @@ const letterStyles = StyleSheet.create({
 
 interface LetterDisplayProps {
     lettersEarned: number;
+    onPress?: () => void;
 }
 
-export const LetterDisplay: React.FC<LetterDisplayProps> = ({ lettersEarned }) => (
+export const LetterDisplay: React.FC<LetterDisplayProps> = ({ lettersEarned, onPress }) => (
     <View style={letterStyles.container}>
         {GAME_LETTERS.map((letter, index) => {
             const isEarned = index < lettersEarned;
@@ -47,6 +48,7 @@ export const LetterDisplay: React.FC<LetterDisplayProps> = ({ lettersEarned }) =
                         letterStyles.box,
                         isEarned ? letterStyles.boxRed : letterStyles.boxBlue,
                     ]}
+                    onTouchEnd={onPress}
                 >
                     <Text style={letterStyles.text}>{letter}</Text>
                 </View>

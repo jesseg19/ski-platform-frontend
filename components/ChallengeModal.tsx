@@ -29,7 +29,6 @@ interface CustomButtonProps {
     style?: object;
 }
 
-// Re-using the CustomButton definition from your prompt for consistency
 const CustomButton: React.FC<CustomButtonProps> = ({ title, onPress, isPrimary = true, disabled = false, style }) => (
     <TouchableOpacity
         style={[modalStyles.customButton, isPrimary ? modalStyles.primaryButton : modalStyles.secondaryButton, style, disabled && { opacity: 0.5 }]}
@@ -62,7 +61,7 @@ export const ChallengeModal: React.FC = () => {
             animationType="slide"
             transparent={true}
             visible={isVisible}
-            onRequestClose={handleReject} // Allow dismissing by physical back button
+            onRequestClose={handleReject}
         >
             <View style={modalStyles.centeredView}>
                 <ThemedView style={modalStyles.modalView}>

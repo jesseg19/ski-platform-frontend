@@ -80,11 +80,11 @@ export const AppStyles = StyleSheet.create({
 export const mainStyles = StyleSheet.create({
     fullScreen: {
         flex: 1,
-        backgroundColor: Colors.lightBlue,
     },
     mainContainer: {
         flex: 1,
         paddingTop: 50,
+        backgroundColor: 'transparent',
     },
     backgroundImage: {
         flex: 1,
@@ -116,6 +116,7 @@ export const mainStyles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 15,
         borderRadius: 10,
+
     },
     callSetButtonText: {
         color: Colors.white,

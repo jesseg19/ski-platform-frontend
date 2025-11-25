@@ -26,17 +26,15 @@ export class GameSyncService {
         this.startBackgroundSync();
     }
 
-    // Start periodic background sync (every 30 seconds when connected)
     startBackgroundSync() {
         if (this.syncInterval) return;
 
         this.syncInterval = setInterval(async () => {
             const netInfo = await NetInfo.fetch();
             if (netInfo.isConnected && !this.syncInProgress) {
-                // Sync all active games
                 this.syncAllGames();
             }
-        }, 30000); // 30 seconds
+        }, 30000);
     }
 
     stopBackgroundSync() {
@@ -46,13 +44,11 @@ export class GameSyncService {
         }
     }
 
-    // Check if online
     async isOnline(): Promise<boolean> {
         const netInfo = await NetInfo.fetch();
         return netInfo.isConnected || false;
     }
 
-    // Sync a specific game
     async syncGame(gameId: number, currentUser: string): Promise<SyncResult> {
         if (this.syncInProgress) {
             console.log('Sync already in progress');
@@ -68,51 +64,38 @@ export class GameSyncService {
                 return { success: false, syncedActions: 0 };
             }
 
-            // Get unsynced actions from local DB
             const unsyncedActions = await this.db.getUnsyncedActions(gameId);
 
             if (unsyncedActions.length === 0) {
-                console.log('No actions to sync');
+                // Still update local state from server
+                await this.updateLocalFromServer(gameId);
                 return { success: true, syncedActions: 0 };
             }
 
-            // Get current server state
             const serverState = await this.fetchServerGameState(gameId);
-
-            // Detect and resolve conflicts
             const conflicts = await this.detectConflicts(unsyncedActions, serverState);
 
             if (conflicts.length > 0) {
                 console.log('Conflicts detected:', conflicts);
-                // For now, server wins on conflicts (can be customized)
                 await this.resolveConflicts(conflicts, gameId);
             }
 
-            // Sync each unsynced action
             let syncedCount = 0;
             for (const action of unsyncedActions) {
                 try {
                     await this.syncRoundAction(action);
                     await this.db.markActionSynced(action.id!);
                     syncedCount++;
-                } catch (error) {
-                    console.error('Failed to sync action:', error);
-                    // Continue with other actions
+                } catch (error: any) {
+                    if (error.response?.data === "Round already resolved") {
+                        await this.db.markActionSynced(action.id!);
+                        console.log('Round already resolved, marking as synced');
+                    } else {
+                        console.error('Failed to sync action:', error);
+                    }
                 }
             }
 
-            // Sync pending actions (player actions, trick calls)
-            const pendingActions = await this.db.getPendingActions(gameId);
-            for (const pending of pendingActions) {
-                try {
-                    await this.syncPendingAction(pending);
-                    await this.db.removePendingAction(pending.id!);
-                } catch (error) {
-                    console.error('Failed to sync pending action:', error);
-                }
-            }
-
-            // Update local state with server state
             await this.updateLocalFromServer(gameId);
 
             return {
@@ -129,7 +112,6 @@ export class GameSyncService {
         }
     }
 
-    // Fetch current game state from server
     private async fetchServerGameState(gameId: number): Promise<any> {
         try {
             const response = await api.get(`/api/games/${gameId}`);
@@ -140,11 +122,8 @@ export class GameSyncService {
         }
     }
 
-    // Detect conflicts between local and server state
     private async detectConflicts(localActions: any[], serverState: any): Promise<ConflictInfo[]> {
         const conflicts: ConflictInfo[] = [];
-
-        // Check if server has more recent tricks that conflict with local actions
         const serverTricks = serverState.tricks || [];
 
         for (const localAction of localActions) {
@@ -153,7 +132,6 @@ export class GameSyncService {
             );
 
             if (serverTrick) {
-                // Check for conflicts
                 const hasConflict =
                     serverTrick.setterLanded !== localAction.setterLanded ||
                     serverTrick.receiverLanded !== localAction.receiverLanded ||
@@ -164,7 +142,7 @@ export class GameSyncService {
                         roundNumber: localAction.roundNumber,
                         localData: localAction,
                         serverData: serverTrick,
-                        resolution: 'SERVER_WINS' // Default strategy
+                        resolution: 'SERVER_WINS'
                     });
                 }
             }
@@ -173,17 +151,13 @@ export class GameSyncService {
         return conflicts;
     }
 
-    // Resolve conflicts (customizable strategy)
     private async resolveConflicts(conflicts: ConflictInfo[], gameId: number): Promise<void> {
         for (const conflict of conflicts) {
             if (conflict.resolution === 'SERVER_WINS') {
-                // Mark local action as synced (effectively discarding it)
-                // The server data will be used when updating local state
                 console.log(`Conflict resolved: Server wins for round ${conflict.roundNumber}`);
             }
         }
 
-        // Notify user if there were conflicts
         if (conflicts.length > 0) {
             Alert.alert(
                 'Game State Synced',
@@ -193,7 +167,6 @@ export class GameSyncService {
         }
     }
 
-    // Sync a single round action to server
     private async syncRoundAction(action: any): Promise<void> {
         try {
             await api.post(`/api/games/${action.gameId}/resolveRound`, {
@@ -202,7 +175,9 @@ export class GameSyncService {
                 trickDetails: action.trickDetails,
                 setterLanded: action.setterLanded,
                 receiverLanded: action.receiverLanded,
-                letterAssignToUsername: action.letterAssignedTo
+                letterAssignToUsername: action.letterAssignedTo,
+                inputByUsername: action.inputByUsername,
+                clientTimestamp: action.createdAt
             });
             console.log('Synced round action:', action.roundNumber);
         } catch (error) {
@@ -211,48 +186,35 @@ export class GameSyncService {
         }
     }
 
-    // Sync a pending action (player action, trick call, etc.)
-    private async syncPendingAction(action: any): Promise<void> {
-        const payload = JSON.parse(action.payload);
-
-        try {
-            switch (action.actionType) {
-                case 'PLAYER_ACTION':
-                    // These are handled via WebSocket, may not need REST sync
-                    break;
-                case 'TRICK_CALL':
-                    // Sync trick call if needed
-                    break;
-                case 'LETTER_UPDATE':
-                    await api.put(
-                        `/api/games/${action.gameId}/players/${payload.userId}/letters?letterCount=${payload.letterCount}`,
-                        {}
-                    );
-                    break;
-                default:
-                    console.warn('Unknown action type:', action.actionType);
-            }
-        } catch (error) {
-            console.error('Failed to sync pending action:', error);
-            throw error;
-        }
-    }
-
-    // Update local database with server state
     private async updateLocalFromServer(gameId: number): Promise<void> {
         try {
             const serverState = await this.fetchServerGameState(gameId);
-
-            // Update local game state
             const localState = await this.db.getGameState(gameId);
-            if (localState) {
+
+            if (localState && serverState.players) {
                 const p1 = serverState.players.find((p: any) => p.username === localState.p1Username);
                 const p2 = serverState.players.find((p: any) => p.username === localState.p2Username);
+
+                // Determine current setter from last trick or currentTurnUserId
+                let whosSet = localState.whosSet;
+                if (serverState.tricks && serverState.tricks.length > 0) {
+                    const lastTrick = serverState.tricks[serverState.tricks.length - 1];
+                    const lastSetter = serverState.players.find((p: any) => p.userId === lastTrick.setterId);
+                    if (lastSetter) {
+                        whosSet = lastSetter.username;
+                    }
+                } else if (serverState.currentTurnUserId) {
+                    const currentTurnUser = serverState.players.find((p: any) => p.userId === serverState.currentTurnUserId);
+                    if (currentTurnUser) {
+                        whosSet = currentTurnUser.username;
+                    }
+                }
 
                 await this.db.saveGameState({
                     ...localState,
                     p1Letters: p1?.finalLetters || 0,
                     p2Letters: p2?.finalLetters || 0,
+                    whosSet: whosSet,
                     lastSyncedAt: Date.now(),
                     isDirty: false
                 });
@@ -262,14 +224,10 @@ export class GameSyncService {
         }
     }
 
-    // Sync all games (for background sync)
     private async syncAllGames(): Promise<void> {
-        // This would sync all active games the user is in
-        // Implementation depends on how you track active games
-        console.log('Background sync triggered');
+        // console.log('Background sync triggered');
     }
 
-    // Save action locally first (optimistic update)
     async saveActionLocally(
         gameId: number,
         roundNumber: number,
@@ -295,7 +253,6 @@ export class GameSyncService {
             inputByUsername
         });
 
-        // Try immediate sync if online
         const online = await this.isOnline();
         if (online) {
             this.syncGame(gameId, inputByUsername);

@@ -59,7 +59,6 @@ export class LocalGameDatabase {
      */
     private async initDatabase() {
         try {
-            // Using openDatabaseAsync to resolve the previous error
             this.db = await openDatabaseAsync('skiGame.db');
             console.log('Database opened successfully.');
 

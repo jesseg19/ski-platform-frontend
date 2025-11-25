@@ -1,8 +1,9 @@
+import api from '@/auth/axios';
 import { OpponentSearch } from '@/components/opponent-search';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Alert, Modal, StyleSheet, View } from 'react-native';
 import { useChallenge } from '../app/context/WebSocketProvider';
 import { useAuth } from '../auth/AuthContext';
@@ -49,12 +50,51 @@ export const GameChallengeModal: React.FC<GameChallengeModalProps> = ({
     const { user } = useAuth();
     const { isConnected, sendChallenge, sentChallengeStatus } = useChallenge();
 
+    const [isChallengePending, setIsChallengePending] = React.useState(false);
+    const [isLoadingStatus, setIsLoadingStatus] = React.useState(false);
+
+    const checkChallengeStatus = useCallback(async (challengerId: number, challengedId: number) => {
+        if (!challengerId || !challengedId || challengerId === challengedId) {
+            setIsChallengePending(false);
+            return;
+        }
+
+        setIsLoadingStatus(true);
+        try {
+            const response = await api.get(`api/games/challenges/pending/challenger`);
+            const pendingChallenges = response.data;
+
+            const sentChallenge = pendingChallenges.find((challenge: any) => {
+                return challenge.challenger.id === challengerId
+                    && challenge.challenged.id === challengedId
+                    && challenge.status === 'PENDING';
+            });
+
+            setIsChallengePending(!!sentChallenge); // Set true if challenge is found, false otherwise
+        } catch (error) {
+            console.error("Error fetching pending challenges:", error);
+            setIsChallengePending(false);
+        } finally {
+            setIsLoadingStatus(false);
+        }
+    }, []);
+
+    // run the check whenever the opponent changes
+    useEffect(() => {
+        if (isVisible && user?.id && p2User.userId > 0) {
+            checkChallengeStatus(user.id, p2User.userId);
+        } else {
+            setIsChallengePending(false);
+        }
+    }, [isVisible, user?.id, p2User.userId, checkChallengeStatus]);
+
+
     const handleUserSelect = useCallback((userSearchResult: any) => {
         const gamePlayer: GamePlayer = {
             userId: userSearchResult.id || userSearchResult.userId,
             username: userSearchResult.username,
-            finalLetters: 0, // Default value
-            playerNumber: 2 // Default to player 2 for opponent
+            finalLetters: 0,
+            playerNumber: 2
         };
         setP2User(gamePlayer);
     }, [setP2User]);
@@ -85,9 +125,6 @@ export const GameChallengeModal: React.FC<GameChallengeModalProps> = ({
 
     }, [user?.id, p2User.userId, p2User.username, isConnected, sendChallenge, p1Username, onChallengeStart]);
 
-
-    const isChallengePending = sentChallengeStatus?.status === 'PENDING';
-
     return (
         <Modal
             animationType="fade"
@@ -109,7 +146,7 @@ export const GameChallengeModal: React.FC<GameChallengeModalProps> = ({
 
                     {isChallengePending && (
                         <ThemedText style={{ color: Colors.darkBlue, marginTop: 15, fontWeight: 'bold' }}>
-                            Challenge Sent! Waiting for {p2User.username} to accept...
+                            You have already sent a challenge to {p2User.username}! Waiting for them to accept...
                         </ThemedText>
                     )}
 

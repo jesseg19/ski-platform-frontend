@@ -1,7 +1,7 @@
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 // Import your design components (ThemedView, etc.)
 
 interface FeedGame {
@@ -30,12 +30,12 @@ const GameFeedItem: React.FC<{ game: FeedGame, onToggleLike: (id: number) => voi
 
       <View style={styles.actions}>
         <TouchableOpacity onPress={() => onToggleLike(game.gameId)}>
-          <Text style={{ color: game.viewerHasLiked ? 'blue' : 'gray' }}>
+          {/* <Text style={{ color: game.viewerHasLiked ? 'blue' : 'gray' }}>
             {game.viewerHasLiked ? '❤️ Liked' : '🤍 Like'} ({game.likeCount})
-          </Text>
+          </Text> */}
         </TouchableOpacity>
         <TouchableOpacity onPress={() => {/* Navigate to Game Details */ }}>
-          <Text style={styles.actionText}>💬 Comments ({game.commentCount})</Text>
+          {/* <Text style={styles.actionText}>💬 Comments ({game.commentCount})</Text> */}
         </TouchableOpacity>
       </View>
     </View>
@@ -90,19 +90,32 @@ export default function HomeScreen() {
   }
 
   return (
-    <FlatList
-      data={feedData}
-      keyExtractor={(item) => item.gameId.toString()}
-      renderItem={({ item }) => <GameFeedItem game={item} onToggleLike={handleToggleLike} />}
-      ListEmptyComponent={<Text style={styles.emptyText}>No recent games from your friends. Go play!</Text>}
-      contentContainerStyle={styles.listContainer}
-    />
+    <ImageBackground
+      source={require('@/assets/images/background.png')}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+    >
+      <FlatList
+        data={feedData}
+        keyExtractor={(item) => item.gameId.toString()}
+        renderItem={({ item }) => <GameFeedItem game={item} onToggleLike={handleToggleLike} />}
+        ListEmptyComponent={<Text style={styles.emptyText}>No recent games from your friends. Go play!</Text>}
+        contentContainerStyle={styles.listContainer}
+      />
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '120%',
+    paddingTop: 50, // To account for safe areas and notches
+  },
   listContainer: {
     paddingVertical: 10,
+    marginTop: 35,
   },
   card: {
     backgroundColor: '#FFF',

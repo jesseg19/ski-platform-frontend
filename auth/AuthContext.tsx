@@ -8,7 +8,7 @@ interface User {
 }
 
 interface AuthContextType {
-  signIn: (token: string, userData: User) => void;
+  signIn: (accessToken: string, refreshToken: string, userData: User) => void;
   signOut: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -34,14 +34,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for a token on app launch
     const checkTokenAndUser = async () => {
       try {
-        const token = await SecureStore.getItemAsync('userToken');
+        const accessToken = await SecureStore.getItemAsync('userAccessToken');
+        const refreshToken = await SecureStore.getItemAsync('userRefreshToken'); // Load Refresh Token
         const userDataJson = await SecureStore.getItemAsync('userData');
 
-        if (token && userDataJson) {
-          console.log("Token and user found on launch:", token, userDataJson);
+        if (accessToken && refreshToken && userDataJson) {
           const userData = JSON.parse(userDataJson);
           setUser(userData);
-          console.log(user);
           setIsAuthenticated(true);
         }
       } catch (error) {
@@ -53,16 +52,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkTokenAndUser();
   }, []);
 
-  const signIn = async (token: string, userData: User) => {
-    await SecureStore.setItemAsync('userToken', token);
+  const signIn = async (accessToken: string, refreshToken: string, userData: User) => {
+    await SecureStore.setItemAsync('userAccessToken', accessToken);
+    await SecureStore.setItemAsync('userRefreshToken', refreshToken);
     await SecureStore.setItemAsync('userData', JSON.stringify(userData));
+
     setIsAuthenticated(true);
     setUser(userData)
-    router.replace('/home'); // Navigate to a protected route
+    if (userData)
+      router.replace('/(tabs)/game');
   };
 
   const signOut = async () => {
-    await SecureStore.deleteItemAsync('userToken');
+    await SecureStore.deleteItemAsync('userAccessToken');
+    await SecureStore.deleteItemAsync('userRefreshToken');
     await SecureStore.deleteItemAsync('userData');
     setIsAuthenticated(false);
     setUser(null);

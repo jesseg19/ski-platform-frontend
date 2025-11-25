@@ -1,13 +1,23 @@
-import { Colors } from '@/constants/theme'; // Assuming you have a theme setup
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Colors } from '@/constants/theme';
+import { AntDesign } from '@expo/vector-icons'; // Import an icon
+import React, { useState } from 'react'; // Import useState
+import {
+    FlatList, // Import FlatList
+    Modal, // Import Modal
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback, // Import TouchableWithoutFeedback
+    View,
+} from 'react-native';
 
 interface TrickSelectorProps {
     label: string;
     options: string[];
     selectedValue: string | null;
-    onSelect: (value: string) => void;
+    onSelect: (value: string | null) => void; // Allow null for deselecting/placeholders
     disabled?: boolean;
+    placeholder?: string; // Add placeholder prop
 }
 
 const TrickSelector: React.FC<TrickSelectorProps> = ({
@@ -16,71 +26,121 @@ const TrickSelector: React.FC<TrickSelectorProps> = ({
     selectedValue,
     onSelect,
     disabled = false,
+    placeholder = "-- Select --", // Default placeholder
 }) => {
+    const [modalVisible, setModalVisible] = useState(false);
+
+    const handleSelect = (option: string) => {
+        onSelect(option);
+        setModalVisible(false);
+    };
+
     return (
         <View style={[styles.container, disabled && { opacity: 0.6 }]}>
             <Text style={styles.label}>{label}</Text>
-            <View style={styles.buttonGroup}>
-                {options.map((option) => {
-                    const isSelected = option === selectedValue;
-                    return (
-                        <TouchableOpacity
-                            key={option}
-                            style={[
-                                styles.button,
-                                isSelected ? styles.buttonActive : styles.buttonInactive,
-                            ]}
-                            onPress={() => onSelect(option)}
-                            disabled={disabled}
-                        >
-                            <Text style={isSelected ? styles.textActive : styles.textInactive}>
-                                {option}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
+            <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => !disabled && setModalVisible(true)}
+                disabled={disabled}
+            >
+                <Text style={[styles.dropdownButtonText, !selectedValue && styles.placeholderText]}>
+                    {selectedValue || placeholder}
+                </Text>
+                <AntDesign name="down" size={16} color={Colors.textGrey} />
+            </TouchableOpacity>
+
+            <Modal
+                transparent={true}
+                animationType="fade"
+                visible={modalVisible}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <FlatList
+                                data={options}
+                                keyExtractor={(item) => item}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={styles.optionButton}
+                                        onPress={() => handleSelect(item)}
+                                    >
+                                        <Text style={styles.optionText}>{item}</Text>
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
+        width: '100%',
         marginBottom: 15,
         paddingHorizontal: 10,
     },
     label: {
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '500', // Changed weight for new style
         marginBottom: 8,
-        color: '#333',
+        color: Colors.textGrey, // Use theme color
     },
-    buttonGroup: {
+    // New styles for dropdown button
+    dropdownButton: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8, // Use gap for spacing between buttons
-    },
-    button: {
-        paddingVertical: 10,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
         paddingHorizontal: 15,
-        borderRadius: 20,
+        backgroundColor: Colors.white, // Use theme color
         borderWidth: 1,
+        borderColor: Colors.lightGrey, // Use theme color
+        borderRadius: 8,
+        height: 50, // Fixed height for consistency
     },
-    buttonActive: {
-        backgroundColor: Colors.light.tint, // Use your app's main color
-        borderColor: Colors.light.tint,
+    dropdownButtonText: {
+        fontSize: 16,
+        color: Colors.darkText, // Use theme color
     },
-    buttonInactive: {
-        backgroundColor: '#fff',
-        borderColor: '#ccc',
+    placeholderText: {
+        color: Colors.textGrey, // Use theme color
     },
-    textActive: {
-        color: '#fff',
-        fontWeight: 'bold',
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
-    textInactive: {
-        color: '#666',
+    modalContent: {
+        width: '80%',
+        backgroundColor: Colors.white, // Use theme color
+        borderRadius: 10,
+        maxHeight: '60%',
+        overflow: 'hidden',
     },
+    optionButton: {
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.lightGrey, // Use theme color
+    },
+    optionText: {
+        fontSize: 16,
+        color: Colors.darkText, // Use theme color
+        textAlign: 'center',
+    },
+    // Removing old button group styles
+    // buttonGroup: { ... },
+    // button: { ... },
+    // buttonActive: { ... },
+    // buttonInactive: { ... },
+    // textActive: { ... },
+    // textInactive: { ... },
 });
 
 export default TrickSelector;

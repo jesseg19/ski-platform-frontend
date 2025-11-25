@@ -8,16 +8,12 @@ import api from '@/auth/axios';
 import * as SecureStore from 'expo-secure-store';
 import SockJS from 'sockjs-client';
 
-// const SOCKET_URL = 'https://ski-platform-backend.onrender.com/ws';
-const SOCKET_URL = 'http://192.168.2.97:8080/ws';
+const SOCKET_URL = 'http://Laps-api-env.eba-7fvwzsz2.us-east-2.elasticbeanstalk.com/ws';
+// const SOCKET_URL = 'http://192.168.2.97:8080/ws';
 
 interface User {
     userId: number;
     username: string;
-}
-
-interface Game {
-    id: number;
 }
 
 type ChallengeStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'SENDING';
@@ -27,10 +23,9 @@ interface ChallengeDto {
     challenger: User;
     challenged: User;
     status: Exclude<ChallengeStatus, 'SENDING'>;
-    game?: Game;
+    gameId?: number;
 }
 
-// New interfaces for WebSocket messages
 interface PlayerActionMessage {
     gameId: number;
     userId: number;
@@ -69,24 +64,6 @@ interface LastTryMessage {
     timestamp: number;
 }
 
-interface ActiveGameProps {
-    gameId: string;
-    currentTurnUserId: number;
-    totalTricks: number;
-    players: {
-        player1: { userId: number; username: string };
-        player2: { userId: number; username: string };
-    };
-    tricks: {
-        turnNumber: number;
-        setterId: number;
-        receiverId: number;
-        setterLanded: boolean;
-        receiverLanded: boolean;
-        trickDetails: string;
-    }
-}
-
 interface ChallengeContextValue {
     isConnected: boolean;
     isSending: boolean;
@@ -104,6 +81,7 @@ interface ChallengeContextValue {
     letterUpdateMessage: LetterUpdateMessage | null;
     roundResolvedMessage: RoundResolvedMessage | null;
     lastTryMessage: LastTryMessage | null;
+    publishLetterUpdate: (gameId: number, userId: number, username: string, newLetterCount: number) => void;
 }
 
 const ChallengeContext = createContext<ChallengeContextValue | null>(null);
@@ -121,7 +99,6 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
     const [sentChallengeStatus, setSentChallengeStatus] = useState<Partial<ChallengeDto> & { status: ChallengeStatus } | null>(null);
     const [isSending, setIsSending] = useState(false);
 
-    // New state for live game updates
     const [playerActionMessage, setPlayerActionMessage] = useState<PlayerActionMessage | null>(null);
     const [trickCallMessage, setTrickCallMessage] = useState<TrickCallMessage | null>(null);
     const [letterUpdateMessage, setLetterUpdateMessage] = useState<LetterUpdateMessage | null>(null);
@@ -140,7 +117,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         }
 
         const connect = async () => {
-            const token = await SecureStore.getItemAsync('userToken');
+            let token = await SecureStore.getItemAsync('userAccessToken');
             if (!token) {
                 console.warn('No user token found, cannot connect WebSocket.');
                 return;
@@ -155,18 +132,16 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 reconnectDelay: 5000,
                 heartbeatIncoming: 10000,
                 heartbeatOutgoing: 10000,
-                debug: (str) => {
+                debug: async (str) => {
                     console.log('STOMP Debug:', str);
+                    token = await SecureStore.getItemAsync('userAccessToken');
                 },
                 onConnect: () => {
                     setIsConnected(true);
-                    console.log('✓ WebSocket Connected!');
 
-                    // Subscribe to challenge updates
                     client.subscribe(`/user/queue/challenges`, (message) => {
                         try {
                             const challengeDto: ChallengeDto = JSON.parse(message.body);
-                            console.log('Received challenge update:', challengeDto);
                             handleChallengeUpdate(challengeDto);
                         } catch (e) {
                             console.error('Failed to parse challenge update:', e);
@@ -207,26 +182,21 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         }
 
         const destination = `/topic/game/${gameId}`;
-        console.log(`Subscribing to game updates at ${destination}`);
 
         const subscription = clientRef.current.subscribe(destination, (message) => {
             try {
                 const data = JSON.parse(message.body);
-                console.log('Received game message:', data);
 
-                // Determine message type based on properties
-                if ('action' in data && 'userId' in data) {
-                    // This is a PlayerActionMessage
+                if ('action' in data && 'userId' in data && !('trickDetails' in data)) {
                     setPlayerActionMessage(data as PlayerActionMessage);
                 } else if ('trickDetails' in data && 'setterUsername' in data && !('setterLanded' in data)) {
-                    // This is a TrickCallMessage
                     setTrickCallMessage(data as TrickCallMessage);
                 } else if ('newLetterCount' in data && 'username' in data) {
-                    // This is a LetterUpdateMessage
                     setLetterUpdateMessage(data as LetterUpdateMessage);
                 } else if ('setterLanded' in data && 'receiverLanded' in data) {
-                    // This is a RoundResolvedMessage
                     setRoundResolvedMessage(data as RoundResolvedMessage);
+                } else if ('playerOnLastTry' in data) {
+                    setLastTryMessage(data as LastTryMessage);
                 }
             } catch (error) {
                 console.error('Failed to parse game update:', error);
@@ -235,32 +205,55 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
 
         return () => {
             subscription.unsubscribe();
-            console.log(`Unsubscribed from game updates at ${destination}`);
         };
     }, []);
 
     const handleChallengeUpdate = (challengeDto: ChallengeDto): void => {
         if (challengeDto.challenged.userId === user?.id && challengeDto.status === 'PENDING') {
+            // Incoming challenge for current user
             setIncomingChallenge(challengeDto);
         } else if (challengeDto.challenger.userId === user?.id) {
             setSentChallengeStatus(challengeDto);
-
-            if (challengeDto.status === 'ACCEPTED') {
-                const gameId: number | undefined = challengeDto.game?.id;
-                if (gameId) {
-                    Alert.alert('Challenge Accepted!', `${challengeDto.challenged.username} is ready to play.`);
-                    router.push({
-                        pathname: '/(tabs)/game/1v1',
-                        params: { modalVisible: "false" },
-                    });
-                } else {
-                    console.error("Game ID missing from accepted challenge response.");
-                    Alert.alert("Error", "Challenge accepted, but couldn't start the game.");
-                }
-            } else if (challengeDto.status === 'REJECTED') {
-                Alert.alert('Challenge Rejected', `${challengeDto.challenged.username} rejected your challenge.`);
-            }
         }
+        if (challengeDto.status === 'ACCEPTED') {
+            const gameId: number | undefined = challengeDto.gameId;
+            if (gameId) {
+                // Clear the waiting state immediately
+                setSentChallengeStatus(null);
+
+                Alert.alert('Challenge Accepted!', `${challengeDto.challenged.username} is ready to play.`, [
+                    {
+                        text: 'Start Game',
+                        onPress: () => {
+                            // Fetch game data and navigate
+                            api.get(`/api/games/${gameId}`)
+                                .then(response => {
+                                    const gameData = response.data;
+
+                                    router.replace({
+                                        pathname: '/(tabs)/game/1v1',
+                                        params: {
+                                            activeGame: JSON.stringify(gameData),
+                                            modalVisible: "false"
+                                        },
+                                    });
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching game data after acceptance:', error);
+                                    Alert.alert("Error", "Challenge accepted, but couldn't load the game data.");
+                                });
+                        }
+                    }
+                ]);
+            } else {
+                console.error("Game ID missing from accepted challenge response.");
+                Alert.alert("Error", "Challenge accepted, but couldn't start the game.");
+            }
+        } else if (challengeDto.status === 'REJECTED') {
+            Alert.alert('Challenge Rejected', `${challengeDto.challenged.username} rejected your challenge.`);
+            setSentChallengeStatus(null);
+        }
+
     };
 
     const publishPlayerAction = useCallback((gameId: number, userId: number, action: 'land' | 'fail'): void => {
@@ -275,10 +268,29 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             action
         };
 
-        console.log('Publishing player action:', message);
-
         clientRef.current.publish({
             destination: '/app/game/playerAction',
+            body: JSON.stringify(message)
+        });
+    }, []);
+
+    const publishLetterUpdate = useCallback((gameId: number, userId: number, username: string, newLetterCount: number): void => {
+        if (!clientRef.current?.active) {
+            console.warn('WebSocket not connected, cannot publish letter update.');
+            return;
+        }
+
+        const message: LetterUpdateMessage = {
+            gameId,
+            userId,
+            username,
+            newLetterCount,
+            timestamp: Date.now()
+        };
+
+        const destination = `/topic/game/${gameId}`;
+        clientRef.current.publish({
+            destination: destination,
             body: JSON.stringify(message)
         });
     }, []);
@@ -295,8 +307,6 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             trickDetails,
             timestamp: Date.now()
         };
-
-        console.log('Publishing trick call:', message);
 
         clientRef.current.publish({
             destination: '/app/game/trickCall',
@@ -317,9 +327,6 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             timestamp: Date.now()
         };
 
-        console.log('Publishing last try:', lastTryMsg);
-
-        // Broadcast directly to the game topic (no backend processing needed)
         const destination = `/topic/game/${gameId}`;
         clientRef.current.publish({
             destination: destination,
@@ -349,11 +356,6 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
     }, [isConnected, isSending]);
 
     const respondToChallenge = useCallback(async (action: 'ACCEPTED' | 'REJECTED', challengeId?: number) => {
-        console.log(`Responding to challenge with action: ${action}`);
-        console.log('Current incomingChallenge:', incomingChallenge);
-        console.log('Provided challengeId:', challengeId);
-
-        // Use provided challengeId or fall back to incomingChallenge
         const targetChallengeId = challengeId || incomingChallenge?.id;
 
         if (!targetChallengeId) {
@@ -367,17 +369,20 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
 
             if (action === 'ACCEPTED') {
                 const gameId = response.data.gameId;
-                console.log(response.data);
-                console.log('Accepted challenge, starting game with ID:', gameId);
-                const activeGame = await api.get('/api/games/active');
-                const gameData: ActiveGameProps | null = activeGame.data;
+
                 if (gameId) {
                     setIncomingChallenge(null);
 
+                    // Fetch game data
+                    const gameResponse = await api.get(`/api/games/${gameId}`);
+                    const gameData = gameResponse.data;
 
-                    router.push({
-                        pathname: '/game/1v1',
-                        params: { gameId: gameId, activeGame: JSON.stringify(gameData) },
+                    router.replace({
+                        pathname: '/(tabs)/game/1v1',
+                        params: {
+                            activeGame: JSON.stringify(gameData),
+                            modalVisible: "false"
+                        },
                     });
                 } else {
                     console.error("Game ID missing from accepted challenge API response.");
@@ -400,7 +405,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 Alert.alert('Error', `Could not ${action} the challenge.`);
             }
 
-            throw error; // Re-throw so NotificationsScreen can handle it
+            throw error;
         }
     }, [incomingChallenge, router]);
 
@@ -420,6 +425,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         publishPlayerAction,
         publishTrickCall,
         publishLastTry,
+        publishLetterUpdate,
         playerActionMessage,
         trickCallMessage,
         letterUpdateMessage,
@@ -437,6 +443,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         publishPlayerAction,
         publishTrickCall,
         publishLastTry,
+        publishLetterUpdate,
         playerActionMessage,
         trickCallMessage,
         letterUpdateMessage,

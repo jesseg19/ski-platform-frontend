@@ -25,7 +25,7 @@ export default function TabLayout() {
         options={{
           title: 'Play Game',
           headerShown: false,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="play" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -33,7 +33,8 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           headerShown: false,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person" color={color} />,
+
         }}
       />
     </Tabs>

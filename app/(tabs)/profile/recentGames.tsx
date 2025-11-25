@@ -148,7 +148,6 @@ const GameListItem: React.FC<{
     const fetchGameTricks = useCallback(async (gameId: number) => {
         setLoadingTricks(true);
         try {
-            // Note: The original prompt uses {$gameId} in the route, which implies it takes a game ID, not a profile ID.
             const response = await api.get(`/api/profiles/${gameId}/tricks`);
             setTricks(response.data);
         } catch (error) {
@@ -287,14 +286,15 @@ export default function RecentGames() {
     // --- GAME RESUME HANDLER ---
     const resumeGame = useCallback(async (gameId: number, game: PausedGame) => {
         try {
-            // Note: API call to /api/games/{gameId}/resume might not be needed if the client-side game logic handles the 'paused' status correctly upon navigation.
-            // But we keep the function structure for completeness.
             await api.put(`/api/games/${gameId}/resume`);
 
             router.push({
                 pathname: '/(tabs)/game/1v1',
                 params: { activeGame: JSON.stringify(game) },
             });
+
+            //remove from paused games list
+            setPausedGames(prev => prev.filter(g => g.gameId !== gameId));
         } catch (error) {
             Alert.alert("Error", "Failed to resume game. Please check your connection.");
             console.error('Failed to resume game:', error);

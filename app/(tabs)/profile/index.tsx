@@ -11,7 +11,6 @@ import React, { useEffect } from 'react';
 
 
 interface UserProfile {
-  //in db
   id: number;
   username: string;
   eloRating: string;
@@ -31,19 +30,12 @@ interface UserProfile {
     opponentUsername: string;
   };
   achievements: { icon: string; title: string }[];
+  totalMatchesAgainst: number;
+  winsAgainst: number; // VIEWED PLAYER'S wins against the current user
+  winsFor: number; // CURRENT USER'S wins against the viewed player
 
 }
 
-// //     private Long gameId;
-//     private LocalDateTime datePlayed;
-//     private String opponentUsername;
-// //    private String opponentProfilePictureUrl; // Assuming you add this to the User entity later
-//     private Integer userFinalLetters;
-//     private Integer opponentFinalLetters;
-//     private Long winnerId;
-
-
-// --- Color Palette (Based on the design) ---
 const Colors = {
   lightBlue: '#EAF7FE', // Main background
   greenButton: '#85E34A', // Used for "View Match" buttons
@@ -60,7 +52,6 @@ const Colors = {
 
 // --- Custom Components ---
 
-// A sleek card component for sections
 interface ProfileCardProps {
   title: string;
   children: React.ReactNode;
@@ -89,17 +80,15 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ title, children, actionText, 
 
 export default function ProfileScreen() {
 
-  const [profileData, setProfileData] = React.useState<UserProfile | null>(null); // Replace 'any' with actual profile data type
+  const [profileData, setProfileData] = React.useState<UserProfile | null>(null);
 
 
 
 
   async function getProfileData() {
-    // This function would fetch and return profile data from an API or state
     try {
       const response = await api.get('/api/profiles/me');
       setProfileData(response.data);
-      console.log('Profile data:', response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to fetch profile data:', error);
@@ -110,13 +99,11 @@ export default function ProfileScreen() {
 
 
   const handleSettingsPress = () => {
-    // In a real app, this would lead to a dedicated settings/edit page
     router.push('/(tabs)/profile/settings');
   };
 
 
   const handleViewMatch = () => {
-    // Navigate to the match details page
     alert('Navigating to Match Details...');
   };
 
@@ -135,7 +122,7 @@ export default function ProfileScreen() {
     <ImageBackground
       source={require('@/assets/images/background.png')}
       style={styles.backgroundImage}
-      resizeMode="cover" // Or 'stretch', 'contain'
+      resizeMode="cover"
     >
       <ThemedView style={styles.mainContainer}>
         {/* Header with Logo and Action Icons */}
@@ -147,7 +134,7 @@ export default function ProfileScreen() {
           {/* S.K.I. Logo */}
           <View style={styles.logoContainer}>
             <Image
-              source={require('@/assets/images/logo.png')} // Replace with your mountain logo
+              source={require('@/assets/images/logo.png')}
               style={styles.mountainLogo}
             />
             <ThemedText style={styles.logoText}>S.K.I.</ThemedText>
@@ -175,23 +162,13 @@ export default function ProfileScreen() {
               style={styles.avatar}
             />
             <ThemedText style={styles.username}>{profileData?.username}</ThemedText>
-            <ThemedText style={styles.rank}>{profileData?.eloRating}</ThemedText>
+            <ThemedText style={styles.rank}>ELO: {profileData?.eloRating}</ThemedText>
             <ThemedText style={styles.bio}>{profileData?.bio}</ThemedText>
 
-            {/* Placeholder for Edit Profile Button (removed, moved to settings) */}
-          </View>
-
-          {/* Pagination Dots Placeholder (for profile carousel if needed) */}
-          <View style={styles.paginationDots}>
-            <View style={styles.dotActive} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
           </View>
 
           {/* Key Stats Card */}
-          <ProfileCard title="Key Stats" actionText="View Stats" onActionPress={handleViewMatch}>
+          <ProfileCard title="Key Stats">
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <ThemedText style={styles.statValue}>{profileData?.gamesPlayed}</ThemedText>
@@ -209,7 +186,7 @@ export default function ProfileScreen() {
           </ProfileCard>
 
           {/* Recent Tricks/Games Card */}
-          <ProfileCard title="Recent Games" actionText="View All" onActionPress={() => { router.push('/(tabs)/profile/recentGames') }}>
+          <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { router.push('/(tabs)/profile/recentGames') }}>
             <View style={styles.recentTrickRow}>
               {/* Player Avatar */}
               <Image
@@ -223,12 +200,12 @@ export default function ProfileScreen() {
               <View style={styles.recentTrickScoreBox}>
                 <ThemedText style={styles.recentTrickScoreValue}>{profileData?.recentGame?.userFinalLetters} - {profileData?.recentGame?.opponentFinalLetters}</ThemedText>
               </View>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={styles.viewMatchButton}
                 onPress={handleViewMatch}
               >
                 <ThemedText style={styles.viewMatchText}>View Match</ThemedText>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           </ProfileCard>
 
@@ -266,6 +243,7 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     paddingTop: 50,
+    backgroundColor: 'transparent',
   },
   // --- Header Styles ---
   header: {

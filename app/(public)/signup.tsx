@@ -2,9 +2,12 @@ import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import React, { useState } from 'react';
 import {
   Alert,
+  ImageBackground,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -23,14 +26,13 @@ import {
 const PRIMARY_COLOR = '#8CD62B';
 const BACKGROUND_COLOR = '#F9F9F9';
 const BORDER_COLOR = '#E0E0E0';
-const LOGO_SOURCE = require('@/assets/images/logo.png'); // IMPORTANT: Update this path!
 
 GoogleSignin.configure({
   webClientId: '789488486637-uhm44ifm2hamqo3c75h3rmunj35a3d2f.apps.googleusercontent.com',
+  offlineAccess: true,
+  iosClientId: '789488486637-k5g7e0j9hssugsuu00l8q6vh8vhudeg4.apps.googleusercontent.com',
 
-  // iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
-
-  scopes: ['https://www.googleapis.com/auth/userinfo.email', 'profile'],
+  scopes: ['email', 'profile'],
 });
 
 // --- Types ---
@@ -43,7 +45,6 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { signIn } = useAuth();
-  const { signIn: localSignIn } = useAuth();
 
   const isLogin = mode === 'login';
 
@@ -56,7 +57,7 @@ export default function AuthScreen() {
       const response = await GoogleSignin.signIn();
       console.log('Google Sign-In Response:', response);
 
-      const idToken = response.data?.idToken; // Your existing code
+      const idToken = response.data?.idToken
       if (idToken) {
         console.log('Google Sign-In successful. Sending token to backend...');
 
@@ -64,9 +65,14 @@ export default function AuthScreen() {
           idToken: idToken,
         });
 
-        const { token: jwtToken, username: userName, id: userId } = backendResponse.data;
+        const {
+          accessToken,
+          refreshToken,
+          username: userName,
+          id: userId
+        } = backendResponse.data;
 
-        localSignIn(jwtToken, { username: userName, id: userId });
+        signIn(accessToken, refreshToken, { username: userName, id: userId });
         Alert.alert('Success', 'Google Sign-In successful!');
 
       } else {
@@ -105,13 +111,14 @@ export default function AuthScreen() {
       try {
         const response = await api.post(`/api/auth/login`, { username, password });
 
-        const jwtToken = response.data.token;
+        const accessToken = response.data.accessToken;
+        const refreshToken = response.data.refreshToken;
         const userData = {
           username: response.data.username,
           id: response.data.id
         };
-        console.log("Login successful! Token:", jwtToken, "User Data:", userData);
-        signIn(jwtToken, userData);
+        console.log("login response:", response.data);
+        signIn(accessToken, refreshToken, userData);
       } catch (error) {
         if (axios.isAxiosError(error)) {
           console.error('Login failed:', error.response?.data || error.message);
@@ -128,13 +135,14 @@ export default function AuthScreen() {
       try {
         const response = await api.post(`/api/auth/signup`, { email, username, password, confirmPassword });
 
-        const jwtToken = response.data.token;
+        const accessToken = response.data.accessToken;
+        const refreshToken = response.data.refreshToken;
         const userData = {
           username: response.data.username,
           id: response.data.id
         };
-        console.log("Signup successful! Token:", jwtToken, "User Data:", userData);
-        signIn(jwtToken, userData);
+        console.log("Signup successful! Token:", accessToken, "User Data:", userData);
+        signIn(accessToken, refreshToken, userData);
       } catch (error) {
         if (axios.isAxiosError(error)) {
           console.error('Signup failed:', error.response?.data || error.message);
@@ -164,7 +172,11 @@ export default function AuthScreen() {
       {/* Placeholder for your S.K.I. logo image */}
       {/* Replace this with an actual <Image> component */}
       <View style={styles.logoPlaceholder}>
-        <Text style={styles.logoText}>S.K.I.</Text>
+        <ImageBackground
+          source={require('@/assets/images/logo.png')}
+          style={styles.logoPlaceholder}
+          resizeMode="contain"
+        />
       </View>
       <Text style={styles.welcomeText}>
         {isLogin ? 'Welcome Back!' : 'Create Your Account'}
@@ -181,12 +193,55 @@ export default function AuthScreen() {
         >
           <FontAwesome name="google" size={24} color="#34A853" />
         </TouchableOpacity>
-        {/* <TouchableOpacity
-          style={styles.socialIcon}
-          onPress={() => socialLogin('facebook')}
-        >
-          <FontAwesome name="facebook" size={24} color="#4267B2" />
-        </TouchableOpacity> */}
+
+        {Platform.OS === 'ios' && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={5}
+            style={styles.button}
+            onPress={async () => {
+              try {
+                const credential = await AppleAuthentication.signInAsync({
+                  requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                  ],
+                });
+
+                const { identityToken, fullName } = credential;
+
+                if (identityToken) {
+                  console.log('Apple Sign-In successful. Sending token to backend...');
+                  const backendResponse = await api.post('/api/auth/apple-auth', {
+                    idToken: identityToken,
+                  });
+                  const {
+                    accessToken,
+                    refreshToken,
+                    username: userName,
+                    id: userId
+                  } = backendResponse.data;
+
+                  signIn(accessToken, refreshToken, { username: userName, id: userId });
+                  Alert.alert('Success', 'Apple Sign-In successful!');
+                } else {
+                  Alert.alert('Cancelled', 'Apple Sign-In was cancelled or failed to get ID token.');
+                }
+              } catch (e: any) {
+                if (e.code === 'ERR_REQUEST_CANCELED') {
+                  console.log('User canceled the sign-in flow');
+                } else if (axios.isAxiosError(e)) {
+                  console.error('Backend Auth Error:', e.response?.data || e.message);
+                  Alert.alert('Error', `Authentication failed: ${e.response?.data?.message || 'Server error'}`);
+                } else {
+                  console.error('Apple Sign-In Error:', e.message || String(e));
+                  Alert.alert('Error', `Apple Sign-In failed: ${e.message || 'An unknown error occurred.'}`);
+                }
+              }
+            }}
+          />
+        )}
       </View>
       <Text style={styles.termsText}>
         By signing up, our agree to our Terms & Conditions and Privacy Policy
@@ -199,6 +254,7 @@ export default function AuthScreen() {
       <TextInput
         style={styles.input}
         placeholder="Email Address or Username"
+        placeholderTextColor="#838383ff"
         onChangeText={setUsername}
         value={username}
         keyboardType="default"
@@ -208,6 +264,7 @@ export default function AuthScreen() {
         <TextInput
           style={styles.input}
           placeholder="Password"
+          placeholderTextColor="#838383ff"
           onChangeText={setPassword}
           value={password}
           secureTextEntry
@@ -237,6 +294,7 @@ export default function AuthScreen() {
       <TextInput
         style={styles.input}
         placeholder="Email Address"
+        placeholderTextColor="#838383ff"
         onChangeText={setEmail}
         value={email}
         keyboardType="email-address"
@@ -245,6 +303,7 @@ export default function AuthScreen() {
       <TextInput
         style={styles.input}
         placeholder="Username"
+        placeholderTextColor="#838383ff"
         onChangeText={setUsername}
         value={username}
         autoCapitalize="none"
@@ -253,6 +312,7 @@ export default function AuthScreen() {
         <TextInput
           style={styles.input}
           placeholder="Password"
+          placeholderTextColor="#838383ff"
           onChangeText={setPassword}
           value={password}
           secureTextEntry
@@ -263,6 +323,7 @@ export default function AuthScreen() {
         <TextInput
           style={styles.input}
           placeholder="Confirm Password"
+          placeholderTextColor="#838383ff"
           onChangeText={setConfirmPassword}
           value={confirmPassword}
           secureTextEntry
@@ -273,6 +334,7 @@ export default function AuthScreen() {
         <Text style={styles.mainButtonText}>Sign Up</Text>
       </TouchableOpacity>
       {renderSocialButtons()}
+
     </View>
   );
 
@@ -307,6 +369,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,
+  },
+  button: {
+    width: 200,
+    height: 44,
   },
   logoContainer: {
     alignItems: 'center',

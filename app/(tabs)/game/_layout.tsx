@@ -9,7 +9,7 @@ export default function MainStackLayout() {
         <Stack>
           <Stack.Screen name="index" options={{ title: 'Game Selection', headerShown: false }} />
           <Stack.Screen name="1v1" options={{ title: '1v1 Match', headerShown: false }} />
-          <Stack.Screen name="1vai" options={{ title: '1vAI Match', headerShown: false }} />
+          <Stack.Screen name="trickGenerator" options={{ title: 'Trick Generator', headerShown: false }} />
         </Stack>
       </GameProvider>
     </ChallengeProvider>
