@@ -3,7 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from './AuthContext';
 
 // const API_BASE_URL = 'http://192.168.139.1:8080';
-const API_BASE_URL = "http://Laps-api-env.eba-7fvwzsz2.us-east-2.elasticbeanstalk.com";
+// const API_BASE_URL = "http://Laps-api-env.eba-7fvwzsz2.us-east-2.elasticbeanstalk.com";
+const API_BASE_URL = "https://laps.api.jessegross.ca";
 
 
 

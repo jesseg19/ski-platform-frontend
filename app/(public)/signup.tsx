@@ -339,12 +339,14 @@ export default function AuthScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.card}>
-        {renderLogoSection()}
-        {isLogin ? renderLoginFields() : renderSignupFields()}
-      </View>
-    </SafeAreaView>
+    <ImageBackground source={require('@/assets/images/background.png')} style={styles.backgroundImage}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.card}>
+          {renderLogoSection()}
+          {isLogin ? renderLoginFields() : renderSignupFields()}
+        </View>
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
@@ -352,20 +354,26 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BACKGROUND_COLOR,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '120%',
+    paddingTop: 50, // To account for safe areas and notches
+  },
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'white',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 15,
     padding: 30,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: 'rgba(182, 182, 182, 0.7)',
+    shadowOffset: { width: 0, height: 9 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,

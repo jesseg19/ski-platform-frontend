@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LAPS",
+    "name": "Laps",
     "slug": "ski-platform",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,7 +13,14 @@
       "bundleIdentifier": "ca.jessegross.skiplatform",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "laps.api.jessegross.ca": {
+              "NSAllowsArbitraryLoadsInWebContent": true
+            }
+          }
+        }
       }
     },
     "android": {
