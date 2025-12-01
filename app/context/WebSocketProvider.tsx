@@ -65,6 +65,12 @@ interface LastTryMessage {
     timestamp: number;
 }
 
+interface GameStatusMessage {
+    gameId: number;
+    status: string;
+    timestamp: number;
+}
+
 interface ChallengeContextValue {
     isConnected: boolean;
     isSending: boolean;
@@ -83,6 +89,8 @@ interface ChallengeContextValue {
     roundResolvedMessage: RoundResolvedMessage | null;
     lastTryMessage: LastTryMessage | null;
     publishLetterUpdate: (gameId: number, userId: number, username: string, newLetterCount: number) => void;
+    publishGameStatus: (gameId: number, status: string) => void;
+
 }
 
 const ChallengeContext = createContext<ChallengeContextValue | null>(null);
@@ -335,6 +343,25 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         });
     }, []);
 
+    const publishGameStatus = useCallback((gameId: number, status: string): void => {
+        if (!clientRef.current?.active) {
+            console.warn('WebSocket not connected, cannot publish game status.');
+            return;
+        }
+
+        const message: GameStatusMessage = {
+            gameId,
+            status,
+            timestamp: Date.now()
+        };
+
+        const destination = `/topic/game/${gameId}`;
+        clientRef.current.publish({
+            destination: destination,
+            body: JSON.stringify(message)
+        });
+    }, []);
+
     const sendChallenge = useCallback(async (challengedId: number) => {
         if (!isConnected) {
             Alert.alert('Connection Error', 'Not connected to the server. Please try again.');
@@ -432,6 +459,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         letterUpdateMessage,
         roundResolvedMessage,
         lastTryMessage,
+        publishGameStatus
     }), [
         isConnected,
         isSending,
@@ -449,7 +477,8 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         trickCallMessage,
         letterUpdateMessage,
         roundResolvedMessage,
-        lastTryMessage
+        lastTryMessage,
+        publishGameStatus
     ]);
 
     return (

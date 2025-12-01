@@ -418,4 +418,107 @@ export const modalStyles = StyleSheet.create({
     disabledButton: {
         opacity: 0.5,
     }
-})
+});
+
+export const leaderboardStyles = StyleSheet.create({
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: Colors.overlay,
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: Colors.white,
+        borderTopLeftRadius: 25,
+        borderTopRightRadius: 25,
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        height: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: Colors.darkText,
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: Colors.lightGrey,
+        borderRadius: 10,
+        marginBottom: 15,
+        padding: 4,
+    },
+    tabButton: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    tabButtonActive: {
+        backgroundColor: Colors.darkBlue,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 5,
+    },
+    tabText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: Colors.darkText,
+    },
+    tabTextActive: {
+        color: Colors.white,
+    },
+    listContainer: {
+        flex: 1,
+    },
+    flatListContent: {
+        paddingBottom: 20,
+        gap: 10,
+    },
+    loadingText: {
+        textAlign: 'center',
+        paddingVertical: 40,
+        fontSize: 16,
+        color: Colors.textGrey,
+    },
+    itemContainer: {
+        flexDirection: 'row',
+        paddingVertical: 15,
+        paddingHorizontal: 15,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: Colors.lightGrey,
+        alignItems: 'center',
+    },
+    rankSection: {
+        width: 40,
+        alignItems: 'center',
+    },
+    rankText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    infoSection: {
+        flex: 1,
+        paddingLeft: 10,
+    },
+    username: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: Colors.darkText,
+    },
+    eloSection: {
+        width: 100,
+        alignItems: 'flex-end',
+    },
+    eloText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+});

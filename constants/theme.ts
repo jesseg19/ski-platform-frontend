@@ -10,17 +10,21 @@ const SKI_LIGHT_GRAY = '#EFEFF4';   // Off-white for light mode background
 
 
 export const Colors = {
-  greenButton: '#85E34A',
+  greenButton: '#4ad4e3ff',
   darkBlue: '#406080',
   textGrey: '#555',
   lightGrey: '#CCC',
   darkText: '#333',
   white: '#FFFFFF',
-  lightBlue: '#F0F8FF', // Light background/container color
+  lightBlue: '#F0F8FF',
   inputBorder: '#D0E0F0',
   overlay: 'rgba(0, 0, 0, 0.4)',
   danger: '#E74C3C',
   success: '#85E34A',
+  gold: '#FFD700',
+  silver: '#C0C0C0',
+  bronze: '#CD7F32',
+  secondaryBlue: '#F2F8FB',
   light: {
     text: SKI_DARK_GRAY,
     background: SKI_LIGHT_GRAY,

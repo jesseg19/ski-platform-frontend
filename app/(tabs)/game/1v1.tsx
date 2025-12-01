@@ -16,6 +16,7 @@ import { useChallenge } from '../../context/WebSocketProvider';
 import api from '@/auth/axios';
 import { GameTricksModal } from '@/components/GameTricksModal';
 import { mainStyles } from '@/constants/AppStyles';
+import { Colors } from '@/constants/theme';
 import { gameSyncService } from '../../services/GameSyncService';
 import { localGameDB } from '../../services/LocalGameDatabase';
 
@@ -76,13 +77,13 @@ export default function GameScreen1v1() {
     roundResolvedMessage,
     lastTryMessage,
     publishLetterUpdate,
+    publishGameStatus
   } = useChallenge();
 
   // Connection state
   const [isOnline, setIsOnline] = useState(true);
   const [syncInProgress, setSyncInProgress] = useState(false);
 
-  // Critical refs
   const isProcessingRound = useRef(false);
   const currentRoundNumber = useRef<number>(1);
   const lastProcessedRoundKey = useRef<string | null>(null);
@@ -313,9 +314,24 @@ export default function GameScreen1v1() {
 
   // ==================== GAME LOGIC ====================
   const addLetterToPlayer = (player: string) => {
-    if (gameStatus === 'gameOver') return;
+    if (gameStatus === 'gameOver' || p1Letters >= MAX_LETTERS || p2Letters >= MAX_LETTERS) return;
+    let setterLanded = null;
+    let receiverLanded = null;
+    if (player === p1Username && whosSet === p1Username) {
+      setterLanded = false;
+      receiverLanded = true;
+    } else if (player === p1Username && whosSet !== p1Username) {
+      setterLanded = true;
+      receiverLanded = false;
+    } else if (player === p2Username && whosSet !== p2Username) {
+      setterLanded = true;
+      receiverLanded = false;
+    } else if (player === p2Username && whosSet === p2Username) {
+      setterLanded = false;
+      receiverLanded = true;
+    }
     setCurrentMessage("Letter added, trick skipped");
-    saveRound(gameId, whosSet, calledTrick, null, null, player);
+    saveRound(gameId, whosSet, calledTrick, setterLanded, receiverLanded, player);
   };
 
   const saveRound = useCallback(async (
@@ -567,6 +583,7 @@ export default function GameScreen1v1() {
 
         await localGameDB.clearGameData(gameId);
         router.push('/(tabs)/game');
+        publishGameStatus(gameId, 'COMPLETED');
       } catch (error) {
         console.error("Failed to save game result:", error);
         Alert.alert("Error", "Failed to save game result.");
@@ -601,6 +618,7 @@ export default function GameScreen1v1() {
       setPauseOrQuitModalVisible(false);
       resetGameKey();
       router.navigate('/(tabs)/game');
+      publishGameStatus(gameId, 'PAUSED');
     } catch (error) {
       console.error("Failed to pause game:", error);
     }
@@ -613,6 +631,7 @@ export default function GameScreen1v1() {
       setPauseOrQuitModalVisible(false);
       resetGameKey();
       router.navigate('/(tabs)/game');
+      publishGameStatus(gameId, 'CANCELLED');
     } catch (error) {
       console.error("Failed to quit game:", error);
     }
@@ -680,24 +699,11 @@ export default function GameScreen1v1() {
     }
   }, [lastTryMessage, gameId]);
 
-  // useEffect(() => {
-  //   if (!user) return;
-
-  //   if (playerActionMessage && playerActionMessage.gameId === gameId) {
-  //     if (playerActionMessage.userId === user.id) return;
-
-  //     console.log('Received player action from other user:', playerActionMessage);
-
-  //     // Map userId to correct player using playerNumber
-  //     const isPlayer1Action = playerActionMessage.userId === p1User?.userId;
-
-  //     if (isPlayer1Action) {
-  //       setP1Action(prev => prev === null ? playerActionMessage.action : prev);
-  //     } else {
-  //       setP2Action(prev => prev === null ? playerActionMessage.action : prev);
-  //     }
-  //   }
-  // }, [playerActionMessage, gameId, p1User, p2User, user]);
+  useEffect(() => {
+    if (p1Letters >= MAX_LETTERS || p2Letters >= MAX_LETTERS) {
+      setGameStatus('gameOver');
+    }
+  }, [p1Letters, p2Letters]);
 
   useEffect(() => {
     if (letterUpdateMessage && letterUpdateMessage.gameId === gameId) {
@@ -754,6 +760,17 @@ export default function GameScreen1v1() {
       style={mainStyles.backgroundImage}
       resizeMode="cover"
     >
+      <CustomButton
+        title="Remove Last Trick"
+        style={{ position: 'absolute', top: 80, right: 20, zIndex: 10, backgroundColor: Colors.danger }}
+        onPress={async () => {
+          try {
+            await api.delete(`/api/games/${gameId}/removeLastTrick`);
+          } catch (error) {
+            console.error('Error removing last trick:', error);
+          }
+        }}
+      />
       <ThemedView style={mainStyles.mainContainer}>
         <GameChallengeModal
           isVisible={namesModalVisible}
@@ -788,7 +805,6 @@ export default function GameScreen1v1() {
               disabled={gameStatus === 'gameOver'}
             >
               <ThemedText style={mainStyles.callSetButtonText}>
-                {/* {calledTrick === 'Awaiting set call...' ? 'CALL NEW TRICK' : 'TRICK SET'} */}
                 CALL NEW TRICK
               </ThemedText>
             </TouchableOpacity>

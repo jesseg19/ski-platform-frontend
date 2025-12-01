@@ -8,10 +8,9 @@ interface GameContextType {
     resetGameKey: () => void;
 }
 
-// Create the context
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-// Custom hook for easy access
+// Custom hooks
 export function useGame() {
     const context = useContext(GameContext);
     if (context === undefined) {
@@ -22,7 +21,7 @@ export function useGame() {
 
 // Provider component
 export function GameProvider({ children }: { children: React.ReactNode }) {
-    // We use a simple counter/timestamp as the key
+    //  a simple counter/timestamp as the key
     const [gameKey, setGameKey] = useState(Date.now());
 
     // Function to update the key, triggering the reset

@@ -25,7 +25,6 @@ interface GamePlayer {
     playerNumber: 1 | 2;
 }
 
-// Stylesheet for Main Game View (only player-related styles needed here)
 const mainStyles = StyleSheet.create({
     playerContainer: {
         backgroundColor: Colors.white,
