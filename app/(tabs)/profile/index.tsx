@@ -3,10 +3,13 @@ import { router } from 'expo-router';
 import { Image, ImageBackground, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 // Assuming these are your custom components
+import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Theme } from '@/constants/theme';
 import React, { useEffect } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 
@@ -36,20 +39,6 @@ interface UserProfile {
 
 }
 
-const Colors = {
-  lightBlue: '#EAF7FE', // Main background
-  greenButton: '#85E34A', // Used for "View Match" buttons
-  darkBlue: '#406080', // Logo and main icons
-  textGrey: '#555',
-  darkText: '#333',
-  white: '#FFFFFF',
-  cardBackground: '#FFFFFF',
-  separator: '#EEE',
-  profileText: '#2D3E50',
-  rankText: '#6A7E9A',
-  overlay: 'rgba(255, 255, 255, 0.7)', // Overlay for background image
-};
-
 // --- Custom Components ---
 
 interface ProfileCardProps {
@@ -69,7 +58,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ title, children, actionText, 
         </TouchableOpacity>
       )}
     </View>
-    <View style={styles.cardContent}>
+    <View>
       {children}
     </View>
   </ThemedView>
@@ -79,12 +68,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ title, children, actionText, 
 // --- Page Implementation ---
 
 export default function ProfileScreen() {
-
   const [profileData, setProfileData] = React.useState<UserProfile | null>(null);
-
-
-
-
+  const { signOut } = useAuth();
   async function getProfileData() {
     try {
       const response = await api.get('/api/profiles/me');
@@ -96,12 +81,9 @@ export default function ProfileScreen() {
     }
   }
 
-
-
   const handleSettingsPress = () => {
     router.push('/(tabs)/profile/settings');
   };
-
 
   const handleViewMatch = () => {
     alert('Navigating to Match Details...');
@@ -124,29 +106,29 @@ export default function ProfileScreen() {
       style={styles.backgroundImage}
       resizeMode="cover"
     >
-      <ThemedView style={styles.mainContainer}>
+      <SafeAreaView style={styles.mainContainer}>
         {/* Header with Logo and Action Icons */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.push('/(tabs)/profile/notifications')} style={styles.iconButton}>
-            <Feather name="bell" size={24} color={Colors.darkBlue} />
+            <Feather name="bell" size={24} color={Theme.darkText} />
           </TouchableOpacity>
 
           {/* S.K.I. Logo */}
-          <View style={styles.logoContainer}>
+          {/* <View style={styles.logoContainer}>
             <Image
               source={require('@/assets/images/logo.png')}
               style={styles.mountainLogo}
             />
             <ThemedText style={styles.logoText}>S.K.I.</ThemedText>
-          </View>
+          </View> */}
 
           {/* Settings/Edit Profile Icon */}
           <View style={{ flexDirection: 'row', gap: 15 }}>
-            <TouchableOpacity onPress={handleSettingsPress} style={styles.iconButton}>
-              <Feather name="settings" size={24} color={Colors.darkBlue} />
-            </TouchableOpacity>
+            {/* <TouchableOpacity onPress={handleSettingsPress} style={styles.iconButton}>
+              <Feather name="settings" size={24} color={Theme.darkText} />
+            </TouchableOpacity> */}
             <TouchableOpacity onPress={() => router.push('/(tabs)/profile/friends')} style={styles.iconButton}>
-              <Feather name="user-plus" size={24} color={Colors.darkBlue} />
+              <Feather name="user-plus" size={24} color={Theme.darkText} />
             </TouchableOpacity>
 
           </View>
@@ -158,7 +140,7 @@ export default function ProfileScreen() {
           <View style={styles.profileHeaderBlock}>
             {/* Avatar */}
             <Image
-              source={require('@/assets/images/avatar.jpg')} // Replace with user's avatar
+              source={require('@/assets/images/avatar.webp')}
               style={styles.avatar}
             />
             <ThemedText style={styles.username}>{profileData?.username}</ThemedText>
@@ -175,7 +157,7 @@ export default function ProfileScreen() {
                 <ThemedText style={styles.statLabel}>Games Played</ThemedText>
               </View>
               <View style={styles.statItem}>
-                <ThemedText style={styles.statValue}>{profileData?.gamesPlayed && profileData?.gamesWon ? (profileData.gamesPlayed / profileData.gamesWon) : 0}%</ThemedText>
+                <ThemedText style={styles.statValue}>{profileData?.gamesPlayed && profileData?.gamesWon ? ((profileData.gamesWon / profileData.gamesPlayed) * 100).toFixed(0) : 0}%</ThemedText>
                 <ThemedText style={styles.statLabel}>Wins</ThemedText>
               </View>
               <View style={styles.statItem}>
@@ -185,17 +167,16 @@ export default function ProfileScreen() {
             </View>
           </ProfileCard>
 
-          {/* Recent Tricks/Games Card */}
+          {/* Recent Games Card */}
           <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { router.push('/(tabs)/profile/recentGames') }}>
             <View style={styles.recentTrickRow}>
               {/* Player Avatar */}
               <Image
-                source={require('@/assets/images/avatar.jpg')} // Replace with player avatar
+                source={require('@/assets/images/avatar.webp')}
                 style={styles.recentTrickAvatar}
               />
               <View style={styles.recentTrickDetails}>
                 <ThemedText style={styles.recentTrickOpponent}>{profileData?.recentGame?.opponentUsername}</ThemedText>
-                <ThemedText style={styles.recentTrickScore}>some text</ThemedText>
               </View>
               <View style={styles.recentTrickScoreBox}>
                 <ThemedText style={styles.recentTrickScoreValue}>{profileData?.recentGame?.userFinalLetters} - {profileData?.recentGame?.opponentFinalLetters}</ThemedText>
@@ -215,7 +196,7 @@ export default function ProfileScreen() {
               {profileData?.achievements.map((item, index) => (
                 <View key={index} style={styles.achievementItem}>
                   <View style={styles.achievementIconBox}>
-                    <Ionicons name={item.icon as any} size={28} color={Colors.darkBlue} />
+                    <Ionicons name={item.icon as any} size={28} color={Theme.secondary} />
                   </View>
                   <ThemedText style={styles.achievementTitle} numberOfLines={2}>
                     {item.title}
@@ -225,9 +206,11 @@ export default function ProfileScreen() {
             </ScrollView>
           </ProfileCard> */}
 
-
+          <TouchableOpacity onPress={() => signOut()} style={styles.signOutButton}>
+            <ThemedText style={styles.signOutText}>Sign out</ThemedText>
+          </TouchableOpacity>
         </ScrollView>
-      </ThemedView>
+      </SafeAreaView>
     </ImageBackground>
   );
 }
@@ -238,11 +221,10 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '120%',
-    paddingTop: 50, // To account for safe areas and notches
+    paddingTop: 50,
   },
   mainContainer: {
     flex: 1,
-    paddingTop: 50,
     backgroundColor: 'transparent',
   },
   // --- Header Styles ---
@@ -262,15 +244,14 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   mountainLogo: {
-    width: 25,
-    height: 20,
+    width: 50,
+    height: 40,
     resizeMode: 'contain',
-    tintColor: Colors.darkBlue,
   },
   logoText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.darkBlue,
+    color: Theme.primary,
   },
   // --- ScrollView Content ---
   scrollViewContent: {
@@ -287,22 +268,22 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: 45,
     borderWidth: 3,
-    borderColor: Colors.white,
+    borderColor: Theme.cardBackground,
     marginBottom: 8,
   },
   username: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: Colors.profileText,
+    color: Theme.darkText,
   },
   rank: {
     fontSize: 16,
-    color: Colors.rankText,
+    color: Theme.darkText,
     marginBottom: 4,
   },
   bio: {
     fontSize: 14,
-    color: Colors.textGrey,
+    color: Theme.darkText,
     marginBottom: 10,
   },
   // --- Pagination Dots ---
@@ -322,12 +303,12 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.darkBlue,
+    backgroundColor: Theme.secondary,
     marginHorizontal: 3,
   },
   // --- Card Styles ---
   card: {
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: Theme.cardBackground,
     borderRadius: 15,
     padding: 15,
     marginBottom: 15,
@@ -346,16 +327,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.darkText,
+    color: Theme.darkText,
   },
   cardActionText: {
     fontSize: 14,
-    color: Colors.darkBlue,
+    color: Theme.darkText,
     fontWeight: '600',
   },
-  cardContent: {
-    // padding will be applied by the card itself
-  },
+
   // --- Stats Row Styles ---
   statsRow: {
     flexDirection: 'row',
@@ -368,11 +347,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.darkText,
+    color: Theme.darkText,
   },
   statLabel: {
     fontSize: 12,
-    color: Colors.textGrey,
+    color: Theme.darkText,
     marginTop: 2,
   },
   // --- Recent Trick Styles ---
@@ -393,14 +372,14 @@ const styles = StyleSheet.create({
   recentTrickOpponent: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.darkText,
+    color: Theme.darkText,
   },
   recentTrickScore: {
     fontSize: 12,
-    color: Colors.textGrey,
+    color: Theme.darkText,
   },
   recentTrickScoreBox: {
-    backgroundColor: Colors.lightBlue,
+    backgroundColor: Theme.background,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -409,10 +388,10 @@ const styles = StyleSheet.create({
   recentTrickScoreValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: Colors.darkBlue,
+    color: Theme.darkText,
   },
   viewMatchButton: {
-    backgroundColor: Colors.greenButton,
+    backgroundColor: Theme.primary,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 15,
@@ -420,7 +399,7 @@ const styles = StyleSheet.create({
   viewMatchText: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: Colors.white,
+    color: Theme.darkText,
   },
   // --- Achievements Styles ---
   achievementsScroll: {
@@ -435,7 +414,7 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: Colors.lightBlue,
+    backgroundColor: Theme.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 5,
@@ -443,6 +422,19 @@ const styles = StyleSheet.create({
   achievementTitle: {
     fontSize: 10,
     textAlign: 'center',
-    color: Colors.textGrey,
+    borderRadius: 10,
+  },
+  signOutButton: {
+    marginTop: 20,
+    backgroundColor: Theme.secondary,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Theme.darkText,
   },
 });

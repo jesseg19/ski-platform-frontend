@@ -16,7 +16,9 @@ import { useChallenge } from '../../context/WebSocketProvider';
 import api from '@/auth/axios';
 import { GameTricksModal } from '@/components/GameTricksModal';
 import { mainStyles } from '@/constants/AppStyles';
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
+
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { gameSyncService } from '../../services/GameSyncService';
 import { localGameDB } from '../../services/LocalGameDatabase';
 
@@ -52,7 +54,7 @@ interface GameTrick {
   setterLanded: boolean;
   receiverLanded: boolean;
   letterAssignedToId: number | null;
-  letterAssignedToUsername: number | null;
+  letterAssignedToUsername: string | null;
   trickDetails: string;
 }
 
@@ -181,7 +183,7 @@ export default function GameScreen1v1() {
   const [p1Action, setP1Action] = useState<'land' | 'fail' | null>(null);
   const [p2Action, setP2Action] = useState<'land' | 'fail' | null>(null);
   const [lastTryPlayer, setLastTryPlayer] = useState<string | null>(null);
-  const [gameStatus, setGameStatus] = useState<'playing' | 'gameOver'>('playing');
+  const [gameStatus, setGameStatus] = useState<'playing' | 'gameOver' | 'pending'>('playing');
   const [pauseOrQuitModalVisible, setPauseOrQuitModalVisible] = useState(false);
   const [tricks, setTricks] = useState<GameTrick[]>([]);
   const [gameTricksModalVisible, gameTricksModalVisibleSet] = useState(false);
@@ -191,6 +193,7 @@ export default function GameScreen1v1() {
   // ==================== CHALLENGE ACCEPTANCE ====================
   useEffect(() => {
     if (sentChallengeStatus && sentChallengeStatus.status === 'ACCEPTED') {
+      setGameStatus('playing');
       console.log('Challenge accepted! Fetching game data...');
 
       const gameId = sentChallengeStatus.gameId;
@@ -314,7 +317,7 @@ export default function GameScreen1v1() {
 
   // ==================== GAME LOGIC ====================
   const addLetterToPlayer = (player: string) => {
-    if (gameStatus === 'gameOver' || p1Letters >= MAX_LETTERS || p2Letters >= MAX_LETTERS) return;
+    if (gameStatus !== 'playing' || p1Letters >= MAX_LETTERS || p2Letters >= MAX_LETTERS) return;
     let setterLanded = null;
     let receiverLanded = null;
     if (player === p1Username && whosSet === p1Username) {
@@ -331,7 +334,7 @@ export default function GameScreen1v1() {
       receiverLanded = true;
     }
     setCurrentMessage("Letter added, trick skipped");
-    saveRound(gameId, whosSet, calledTrick, setterLanded, receiverLanded, player);
+    saveRound(gameId, whosSet, 'Letter added without trick', setterLanded, receiverLanded, player);
   };
 
   const saveRound = useCallback(async (
@@ -606,6 +609,7 @@ export default function GameScreen1v1() {
     setNamesModalVisible(false);
     setCurrentMessage(`Challenge sent to ${opponentUsername}. Waiting...`);
     setCalledTrick(`Waiting for ${opponentUsername} to accept...`);
+    setGameStatus("pending");
   }, []);
 
   const handleBackToMenu = useCallback(() => {
@@ -637,13 +641,38 @@ export default function GameScreen1v1() {
     }
   };
 
+  const handleRemoveLastTrick = async () => {
+    if (tricks.length === 0) return;
+    const lastTrick = tricks[tricks.length - 1];
+    try {
+      await api.delete(`/api/games/${gameId}/removeLastTrick`)
+      setTricks(prev => prev.slice(0, -1));
+      setCurrentMessage('Last trick removed.');
+      if (lastTrick.letterAssignedToUsername) {
+        if (lastTrick.letterAssignedToUsername === p1Username && p1Letters > 0) {
+          setP1Letters(prev => prev - 1);
+        } else if (lastTrick.letterAssignedToUsername === p2Username && p2Letters > 0) {
+          setP2Letters(prev => prev - 1);
+        }
+        publishLetterUpdate(gameId,
+          lastTrick.letterAssignedToUsername === p1Username ? (p1User?.userId || 0) : (p2User?.userId || 0),
+          lastTrick.letterAssignedToUsername,
+          lastTrick.letterAssignedToUsername === p1Username ? p1Letters - 1 : p2Letters - 1
+        );
+      }
+    } catch (error) {
+      console.error('Failed to remove last trick:', error);
+      Alert.alert('Error', 'Failed to remove last trick.');
+    }
+  };
+
   const getActionDisabled = useCallback((player: string) => {
     const action = player === p1Username ? p1Action : p2Action;
     const isAwaitingSet = calledTrick.trim() === 'Awaiting set call...' || gameId < 0;
     return (
       action !== null ||
       lastTryPlayer !== null ||
-      gameStatus === 'gameOver' ||
+      gameStatus !== 'playing' ||
       isAwaitingSet ||
       isProcessingRound.current
     );
@@ -721,6 +750,12 @@ export default function GameScreen1v1() {
   }, [letterUpdateMessage, gameId, p1Username, p2Username]);
 
   useEffect(() => {
+    if (gameStatus === 'pending') {
+      setCurrentMessage('Waiting for opponent to accept the challenge...');
+    }
+  }, [gameStatus]);
+
+  useEffect(() => {
     if (roundResolvedMessage && roundResolvedMessage.gameId === gameId && !isProcessingRound.current) {
       console.log('Received round resolution:', roundResolvedMessage);
 
@@ -760,18 +795,8 @@ export default function GameScreen1v1() {
       style={mainStyles.backgroundImage}
       resizeMode="cover"
     >
-      <CustomButton
-        title="Remove Last Trick"
-        style={{ position: 'absolute', top: 80, right: 20, zIndex: 10, backgroundColor: Colors.danger }}
-        onPress={async () => {
-          try {
-            await api.delete(`/api/games/${gameId}/removeLastTrick`);
-          } catch (error) {
-            console.error('Error removing last trick:', error);
-          }
-        }}
-      />
-      <ThemedView style={mainStyles.mainContainer}>
+
+      <SafeAreaView style={mainStyles.mainContainer}>
         <GameChallengeModal
           isVisible={namesModalVisible}
           onClose={() => setNamesModalVisible(false)}
@@ -782,11 +807,14 @@ export default function GameScreen1v1() {
           onBackToMenu={() => { router.navigate('/(tabs)/game'); setNamesModalVisible(false); }}
         />
 
+
         <ScrollView
           key={gameKey}
           contentContainerStyle={mainStyles.scrollViewContent}
           keyboardShouldPersistTaps="handled"
         >
+
+
           {!isOnline && (
             <ThemedView style={{ backgroundColor: '#ff9800', padding: 8, marginBottom: 10, borderRadius: 4 }}>
               <ThemedText style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>
@@ -800,9 +828,9 @@ export default function GameScreen1v1() {
               <Text style={{ fontWeight: 'bold' }}>{whosSet}</Text>&apos;s Set
             </ThemedText>
             <TouchableOpacity
-              style={[mainStyles.callSetButton, { opacity: gameStatus === 'gameOver' ? 0.5 : 1 }]}
+              style={[mainStyles.callSetButton, { opacity: gameStatus !== 'playing' ? 0.5 : 1 }]}
               onPress={() => setSetCallModalVisible(true)}
-              disabled={gameStatus === 'gameOver'}
+              disabled={gameStatus !== 'playing'}
             >
               <ThemedText style={mainStyles.callSetButtonText}>
                 CALL NEW TRICK
@@ -862,16 +890,22 @@ export default function GameScreen1v1() {
             </ThemedView>
           )}
 
-          <View style={mainStyles.backButtonContainer}>
-            <TouchableOpacity onPress={handleBackToMenu}>
-              <ThemedText style={mainStyles.backButtonText}>Exit Game</ThemedText>
-            </TouchableOpacity>
+
+
+          <View style={{ height: 50, display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }} >
+            <CustomButton
+              title="Remove Last Trick"
+              style={{ backgroundColor: Theme.danger }}
+              onPress={handleRemoveLastTrick}
+              disabled={tricks.length === 0 || gameStatus === 'gameOver'}
+            />
+            {/* button to show all previously done tricks in this game */}
+            <CustomButton title="View Trick History" onPress={() => {
+              getAllGameTricks();
+            }} isPrimary={false} />
+
           </View>
 
-          {/* button to show all previously done tricks in this game */}
-          <CustomButton title="View Trick History" onPress={() => {
-            getAllGameTricks();
-          }} isPrimary={false} />
 
           <GameTricksModal
             isVisible={gameTricksModalVisible}
@@ -881,6 +915,11 @@ export default function GameScreen1v1() {
             p2Username={p2Username}
           />
 
+          <View style={mainStyles.backButtonContainer}>
+            <TouchableOpacity onPress={handleBackToMenu}>
+              <ThemedText style={mainStyles.backButtonText}>Exit Game</ThemedText>
+            </TouchableOpacity>
+          </View>
 
         </ScrollView>
 
@@ -895,8 +934,8 @@ export default function GameScreen1v1() {
               <ThemedText style={mainStyles.modalTitle}>Pause or Quit</ThemedText>
               <ThemedText style={mainStyles.modalMessage}>Do you want to pause the game or quit?</ThemedText>
               <View style={mainStyles.modalButtons}>
-                <CustomButton title="Pause" onPress={handlePauseGame} />
-                <CustomButton title="Quit" onPress={handleQuitGame} />
+                <CustomButton title="Pause" onPress={handlePauseGame} disabled={gameStatus !== 'playing'} />
+                <CustomButton title="Quit" onPress={handleQuitGame} disabled={gameStatus !== 'playing'} />
                 <CustomButton title="Back to game" onPress={() => setPauseOrQuitModalVisible(false)} isPrimary={false} />
               </View>
             </View>
@@ -909,7 +948,7 @@ export default function GameScreen1v1() {
           currentTrick={calledTrick}
           onTrickCall={handleTrickCall}
         />
-      </ThemedView>
+      </SafeAreaView>
     </ImageBackground>
   );
 }

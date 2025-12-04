@@ -1,11 +1,12 @@
 import api from '@/auth/axios';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
 import { AntDesign } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChallenge } from '../../context/WebSocketProvider';
 
 interface User {
@@ -65,7 +66,7 @@ export default function NotificationsScreen() {
                     challenger: incomingChallenge.challenger,
                     challenged: incomingChallenge.challenged,
                     createdAt: new Date(),
-                    gameId: incomingChallenge.game?.id
+                    gameId: incomingChallenge.gameId
                 };
                 setChallengeNotifications(prev => [newNotification, ...prev]);
             }
@@ -154,10 +155,10 @@ export default function NotificationsScreen() {
     }
 
     return (
-        <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                    <AntDesign name="arrow-left" size={24} color={Colors.darkBlue} />
+                    <AntDesign name="arrow-left" size={24} color={Theme.darkText} />
                 </TouchableOpacity>
                 <ThemedText style={styles.headerTitle}>Notifications</ThemedText>
             </View>
@@ -198,7 +199,7 @@ export default function NotificationsScreen() {
                     </View>
                 </ThemedView>
             ))}
-        </ThemedView>
+        </SafeAreaView>
     );
 }
 
@@ -211,7 +212,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
-        paddingTop: 20,
     },
     iconButton: {
         padding: 8,
@@ -220,6 +220,7 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         marginLeft: 16,
+        color: Theme.darkText,
     },
     title: {
         fontSize: 24,
@@ -247,6 +248,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 8,
+        color: Theme.darkText,
     },
     cardMessage: {
         fontSize: 16,

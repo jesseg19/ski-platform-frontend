@@ -1,8 +1,9 @@
+import { Theme } from '@/constants/theme';
 import { AntDesign } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useDebounce } from 'use-debounce'; // Assuming this hook is available
-import api from '../auth/axios'; // Assuming your API client is here
+import { useDebounce } from 'use-debounce';
+import api from '../auth/axios';
 
 
 // Placeholder for ThemedText
@@ -14,17 +15,6 @@ const ThemedText: React.FC<ThemedTextProps> = ({ children, style }) => (
     <Text style={style}>{children}</Text>
 );
 
-// --- Color Palette ---
-const Colors = {
-    greenButton: '#85E34A',
-    darkBlue: '#406080',
-    textGrey: '#555',
-    darkText: '#333',
-    white: '#FFFFFF',
-    lightBlue: '#F0F8FF', // Used for list items background
-    inputBorder: '#D0E0F0',
-    inputBackground: '#F9FCFF',
-};
 
 interface UserSearchResult {
     id: number;
@@ -35,11 +25,10 @@ interface UserSearchResult {
 
 interface OpponentSearchProps {
     onUserSelect: (user: UserSearchResult) => void;
-    selectedUsername: string; // The username selected by the parent component
+    selectedUsername: string;
 }
 
 export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, selectedUsername }) => {
-    // We use internal state for the text input
     const [searchTerm, setSearchTerm] = useState(selectedUsername);
     const [results, setResults] = useState<UserSearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -95,10 +84,10 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
 
 
     const handleUserSelect = (user: UserSearchResult) => {
-        setResults([]); // Clear the list
-        setSearchTerm(user.username); // Set input to selected username
-        setHasSelectedUser(true); // Mark as selected
-        onUserSelect(user); // Notify parent (this is the crucial step)
+        setResults([]);
+        setSearchTerm(user.username);
+        setHasSelectedUser(true);
+        onUserSelect(user);
     };
 
     const handleTextChange = (text: string) => {
@@ -112,8 +101,6 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
             // until a new, valid selection is made from the results list.
             onUserSelect({ id: -1, username: '' });
         }
-
-        // No need for a separate isSearching state, just let the useEffect handle it.
     }
 
     const handleClearSelection = () => {
@@ -130,7 +117,7 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
         >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {/* Simplified profile image logic for display */}
+                    {/* Simplified profile image logic for display,------ not yet implemented ----- */}
                     <Image
                         source={{ uri: item.profileImageUrl || 'https://via.placeholder.com/40' }}
                         style={searchStyles.profileImage}
@@ -140,7 +127,7 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
                         <ThemedText style={searchStyles.eloText}>Rating: {item.eloRating}</ThemedText>
                     </View>
                 </View>
-                <AntDesign name="arrow-right" size={16} color={Colors.darkBlue} />
+                <AntDesign name="arrow-right" size={16} color={Theme.primary} />
             </View>
         </TouchableOpacity>
     );
@@ -156,11 +143,11 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
     return (
         <View style={searchStyles.container}>
             <View style={searchStyles.searchInputWrapper}>
-                <AntDesign name="search" size={18} color={Colors.textGrey} style={searchStyles.searchIcon} />
+                <AntDesign name="search" size={18} color={Theme.darkText} style={searchStyles.searchIcon} />
                 <TextInput
                     style={searchStyles.searchInput}
                     placeholder="Search username..."
-                    placeholderTextColor={Colors.textGrey}
+                    placeholderTextColor={Theme.darkText}
                     value={searchTerm}
                     onChangeText={handleTextChange}
                     editable={!isLocked}
@@ -172,7 +159,7 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
                 <View style={searchStyles.resultsContainer}>
                     {isLoading && (
                         <View style={searchStyles.statusBox}>
-                            <ActivityIndicator size="small" color={Colors.darkBlue} />
+                            <ActivityIndicator size="small" color={Theme.primary} />
                             <ThemedText style={searchStyles.statusText}>Searching...</ThemedText>
                         </View>
                     )}
@@ -201,7 +188,7 @@ export const OpponentSearch: React.FC<OpponentSearchProps> = ({ onUserSelect, se
                     style={searchStyles.clearButton}
                     onPress={handleClearSelection}
                 >
-                    <AntDesign name="close-circle" size={16} color={Colors.textGrey} />
+                    <AntDesign name="close-circle" size={16} color={Theme.darkText} />
                     <ThemedText style={searchStyles.clearButtonText}>Change User</ThemedText>
                 </TouchableOpacity>
             )}
@@ -217,10 +204,10 @@ const searchStyles = StyleSheet.create({
     searchInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.inputBackground,
+        backgroundColor: Theme.background,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: Colors.inputBorder,
+        borderColor: Theme.border,
         paddingHorizontal: 15,
         height: 55,
         marginBottom: 10,
@@ -242,16 +229,16 @@ const searchStyles = StyleSheet.create({
     searchInput: {
         flex: 1,
         fontSize: 16,
-        color: Colors.darkText,
+        color: Theme.darkText,
         height: '100%',
     },
     resultsContainer: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.cardBackground,
         borderRadius: 12,
         marginTop: 5,
         borderWidth: 1,
-        borderColor: Colors.inputBorder,
-        maxHeight: 200, // Constrain height
+        borderColor: Theme.border,
+        maxHeight: 200,
         overflow: 'hidden',
     },
     list: {
@@ -263,18 +250,18 @@ const searchStyles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 15,
         paddingHorizontal: 15,
-        borderBottomColor: Colors.inputBorder,
+        borderBottomColor: Theme.border,
         borderBottomWidth: 1,
-        backgroundColor: Colors.lightBlue,
+        backgroundColor: Theme.secondary,
     },
     usernameText: {
         fontSize: 16,
-        color: Colors.darkText,
+        color: Theme.darkText,
         fontWeight: '500',
     },
     eloText: {
         fontSize: 14,
-        color: Colors.textGrey,
+        color: Theme.darkText,
         fontWeight: '400',
     },
     statusBox: {
@@ -285,7 +272,7 @@ const searchStyles = StyleSheet.create({
     },
     statusText: {
         marginLeft: 10,
-        color: Colors.textGrey,
+        color: Theme.darkText,
     },
     clearButton: {
         flexDirection: 'row',
@@ -297,7 +284,7 @@ const searchStyles = StyleSheet.create({
     },
     clearButtonText: {
         fontSize: 14,
-        color: Colors.textGrey,
+        color: Theme.darkText,
         fontWeight: '500',
     },
     profileImage: {

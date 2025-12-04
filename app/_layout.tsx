@@ -14,8 +14,6 @@ function InitialLoadingScreen() {
     );
   }
 
-  // Once loading is complete, let the router take over.
-  // The index.tsx or your group layouts will handle the final redirect based on isAuthenticated.
   return (
     <Stack>
       <Stack.Screen name="(public)" options={{ headerShown: false }} />

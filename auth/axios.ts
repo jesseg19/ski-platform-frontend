@@ -1,12 +1,9 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { useAuth } from './AuthContext';
 
-// const API_BASE_URL = 'http://192.168.139.1:8080';
+// const API_BASE_URL = 'http://192.168.139.1:5000';
 // const API_BASE_URL = "http://Laps-api-env.eba-7fvwzsz2.us-east-2.elasticbeanstalk.com";
 const API_BASE_URL = "https://laps.api.jessegross.ca";
-
-
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -15,11 +12,24 @@ const api = axios.create({
     },
 });
 
+let tokenRefreshCallback: (() => void) | null = null;
+
+export const setTokenRefreshCallback = (callback: () => void) => {
+    tokenRefreshCallback = callback;
+};
+
+// Callback to handle sign out from interceptor
+let signOutCallback: (() => void) | null = null;
+
+export const setSignOutCallback = (callback: () => void) => {
+    signOutCallback = callback;
+};
+
+
 // Request Interceptor
 api.interceptors.request.use(
     async (config) => {
         const accessToken = await SecureStore.getItemAsync('userAccessToken');
-
         if (accessToken) {
             config.headers.Authorization = `Bearer ${accessToken}`;
         }
@@ -51,21 +61,19 @@ api.interceptors.response.use(
 
         // Condition for refreshing: 403 and not a retry
         if (status === 403 && !originalRequest._retry) {
-
             if (isRefreshing) {
-                // If refreshing, queue the request and return a promise
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject, originalRequest });
                 });
             }
 
             originalRequest._retry = true;
-            isRefreshing = true; // Start the lock
+            isRefreshing = true;
 
             try {
                 const refreshToken = await SecureStore.getItemAsync('userRefreshToken');
                 if (!refreshToken) {
-                    useAuth().signOut();
+                    if (signOutCallback) signOutCallback();
                     throw new Error("No refresh token available.");
                 }
 
@@ -73,24 +81,25 @@ api.interceptors.response.use(
                 const newAccessToken = refreshResponse.data.accessToken;
 
                 await SecureStore.setItemAsync('userAccessToken', newAccessToken);
-                //  Update default header for future requests
+
+                if (tokenRefreshCallback) {
+                    tokenRefreshCallback();
+                }
+
                 api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-                // Update original request header
                 originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
-                // Process the queue with the new token
                 processQueue(null, newAccessToken);
 
-                // Resend the original request
                 return api(originalRequest);
 
             } catch (refreshError) {
                 processQueue(refreshError);
-                useAuth().signOut();
+                if (signOutCallback) signOutCallback();
                 return Promise.reject(refreshError);
 
             } finally {
-                isRefreshing = false; // Release the lock
+                isRefreshing = false;
             }
         }
         return Promise.reject(error);

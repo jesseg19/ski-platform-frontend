@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function Index() {
   useEffect(() => {
@@ -26,8 +27,10 @@ export default function Index() {
   // Show a loading indicator while we check the authentication status
   // This prevents a brief flash of the default redirect
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" />
-    </View>
+    <SafeAreaProvider>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    </SafeAreaProvider>
   );
 }

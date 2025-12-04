@@ -1,8 +1,10 @@
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
+import { Theme } from '@/constants/theme';
 import React, { useEffect, useState } from 'react';
 import { FlatList, ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-// Import your design components (ThemedView, etc.)
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 interface FeedGame {
   gameId: number;
@@ -95,30 +97,32 @@ export default function HomeScreen() {
       style={styles.backgroundImage}
       resizeMode="cover"
     >
-      <FlatList
-        data={feedData}
-        keyExtractor={(item) => item.gameId.toString()}
-        renderItem={({ item }) => <GameFeedItem game={item} onToggleLike={handleToggleLike} />}
-        ListEmptyComponent={<Text style={styles.emptyText}>No recent games from your friends. Go play!</Text>}
-        contentContainerStyle={styles.listContainer}
-      />
+      <SafeAreaView style={styles.mainContainer}>
+        <FlatList
+          data={feedData}
+          keyExtractor={(item) => item.gameId.toString()}
+          renderItem={({ item }) => <GameFeedItem game={item} onToggleLike={handleToggleLike} />}
+          ListEmptyComponent={<Text style={styles.emptyText}>No recent games from your friends. Go play!</Text>}
+          contentContainerStyle={styles.listContainer}
+        />
+      </SafeAreaView>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: 'transparent' },
   backgroundImage: {
     flex: 1,
     width: '100%',
     height: '120%',
-    paddingTop: 50, // To account for safe areas and notches
   },
   listContainer: {
     paddingVertical: 10,
     marginTop: 35,
   },
   card: {
-    backgroundColor: '#FFF',
+    backgroundColor: Theme.cardBackground,
     borderRadius: 8,
     padding: 15,
     marginHorizontal: 10,
@@ -136,7 +140,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#555',
+    color: Theme.darkText,
     marginBottom: 8,
   },
   stats: {
@@ -149,16 +153,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
+    borderTopColor: Theme.border,
     paddingTop: 10,
   },
   actionText: {
-    color: '#4A90E2',
+    color: Theme.primary,
   },
   emptyText: {
     textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
-    color: '#777',
+    color: Theme.placeholder,
   }
 });

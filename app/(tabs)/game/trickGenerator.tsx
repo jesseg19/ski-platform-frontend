@@ -1,27 +1,12 @@
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Ionicons } from '@expo/vector-icons'; // Assuming you use Ionicons
-
-// --- Define Colors for Consistency ---
-const Colors = {
-  greenButton: '#85E34A',
-  darkBlue: '#406080',
-  textGrey: '#555',
-  darkText: '#333',
-  white: '#FFFFFF',
-  lightBlue: '#F0F8FF',
-  inputBorder: '#D0E0F0',
-  overlay: 'rgba(0, 0, 0, 0.4)',
-  danger: '#E74C3C',
-  success: '#85E34A',
-  darkCard: '#1D3D47', // For the parallax header
-  lightCard: '#A1CEDC', // For the parallax header
-};
+import { Theme } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // --- Custom Button Component for Difficulty Levels ---
 interface DifficultyButtonProps {
@@ -61,7 +46,7 @@ const ModeSwitch: React.FC<ModeSwitchProps> = ({ selectedMode, onSelectMode }) =
         ]}
         onPress={() => onSelectMode('jumps')}
       >
-        <Ionicons name="dice-outline" size={20} color={selectedMode === 'jumps' ? Colors.white : Colors.darkBlue} />
+        <Ionicons name="dice-outline" size={20} color={selectedMode === 'jumps' ? Theme.cardBackground : Theme.primary} />
         <ThemedText style={selectedMode === 'jumps' ? diceStyles.modeSwitchTextSelected : diceStyles.modeSwitchTextDefault}>
           Jumps
         </ThemedText>
@@ -73,7 +58,7 @@ const ModeSwitch: React.FC<ModeSwitchProps> = ({ selectedMode, onSelectMode }) =
         ]}
         onPress={() => onSelectMode('rails')}
       >
-        <Ionicons name="snow-outline" size={20} color={selectedMode === 'rails' ? Colors.white : Colors.darkBlue} />
+        <Ionicons name="snow-outline" size={20} color={selectedMode === 'rails' ? Theme.cardBackground : Theme.primary} />
         <ThemedText style={selectedMode === 'rails' ? diceStyles.modeSwitchTextSelected : diceStyles.modeSwitchTextDefault}>
           Rails
         </ThemedText>
@@ -86,10 +71,10 @@ const ModeSwitch: React.FC<ModeSwitchProps> = ({ selectedMode, onSelectMode }) =
 // --- Difficulty Level Mapping  ---
 const DIFFICULTY_LEVELS = [
   { displayName: 'I', name: 'Beginner', maxDifficulty: 20, minDifficulty: 0, value: 1 },
-  { displayName: 'II', name: 'Intermediate', maxDifficulty: 50, minDifficulty: 21, value: 2 },
-  { displayName: 'III', name: 'Advanced', maxDifficulty: 75, minDifficulty: 51, value: 3 },
-  { displayName: 'IV', name: 'Expert', maxDifficulty: 100, minDifficulty: 76, value: 4 },
-  { displayName: 'V', name: 'Insane', maxDifficulty: 250, minDifficulty: 101, value: 5 },
+  // { displayName: 'II', name: 'Intermediate', maxDifficulty: 50, minDifficulty: 21, value: 2 },
+  { displayName: 'II', name: 'Advanced', maxDifficulty: 65, minDifficulty: 21, value: 3 },
+  { displayName: 'III', name: 'Expert', maxDifficulty: 100, minDifficulty: 45, value: 4 },
+  { displayName: 'IV', name: 'Insane', maxDifficulty: 250, minDifficulty: 101, value: 5 },
 ];
 
 // --- Base Trick Component Interface ---
@@ -99,8 +84,6 @@ interface TrickComponent {
 }
 
 // --- JUMP TRICK GENERATION LOGIC ---
-// ... (omitting all TrickComponent[] definitions for JUMPS for brevity) ...
-// ... (they are unchanged from your original file) ...
 const stanceOptions: TrickComponent[] = [
   { name: "Forward", difficulty: 1 },
   { name: "Switch", difficulty: 5 },
@@ -128,7 +111,7 @@ const degreeOfRotationOptions: TrickComponent[] = [
   { name: "900", difficulty: 12 },
   { name: "1080", difficulty: 20 },
   { name: "1260", difficulty: 55 },
-  { name: "1440", difficulty: 70 },
+  // { name: "1440", difficulty: 70 },
 ];
 const grabOptions: TrickComponent[] = [
   { name: "Mute", difficulty: 1 },
@@ -156,62 +139,105 @@ function isValidTrick(trick: Trick, selectedDifficulty: number): boolean {
   if ((trick.axis === 'Bio' || trick.axis === 'Misty') && parseInt(trick.degreeOfRotation) < 900 && trick.numberOfFlips === "Double") {
     return false;
   }
+  // cork/rodeo can't be double under 540
+  if ((trick.axis === 'Cork' || trick.axis === 'Rodeo') && parseInt(trick.degreeOfRotation) < 540 && trick.numberOfFlips === "Double") {
+    return false;
+  }
+  // switch cork/rodeo can't be double under 900
+  if ((trick.axis === 'Cork' || trick.axis === 'Rodeo') && trick.stance === "Switch" && parseInt(trick.degreeOfRotation) < 900 && trick.numberOfFlips === "Double") {
+    return false;
+  }
   //can't flip on axis
   if (trick.numberOfFlips === "Double" && trick.axis === "On Axis") {
     return false;
   }
-  // nothing under 180 for anything but cork or on axis
-  if (trick.axis !== "On Axis" && trick.axis !== "Cork" && trick.degreeOfRotation <= "360") {
+  // nothing under 360 for anything but cork or on axis
+  if (trick.axis !== "On Axis" && trick.axis !== "Cork" && parseInt(trick.degreeOfRotation) <= 360) {
+    return false;
+  }
+  if (trick.axis === "Cork" && (parseInt(trick.degreeOfRotation) <= 180 || trick.stance === "Switch" && parseInt(trick.degreeOfRotation) <= 360)) {
     return false;
   }
   // sw misty/bio can't be 540 or under
-  if ((trick.axis === "Misty" || trick.axis === "Bio") && trick.stance === "Switch" && (trick.degreeOfRotation === "180" || trick.degreeOfRotation === "360" || trick.degreeOfRotation === "540")) {
+  if ((trick.axis === "Misty" || trick.axis === "Bio") && trick.stance === "Switch" && parseInt(trick.degreeOfRotation) <= 720) {
     return false;
   }
 
-  //level 1 restrictions
-  if (selectedDifficulty === 1 && trick.axis !== "On Axis") {
-    return false;
-  }
-  if (selectedDifficulty === 1 && parseInt(trick.degreeOfRotation) >= 900) {
-    return false;
-  }
+  // //level 1 restrictions
+  // if (selectedDifficulty === 1 && trick.axis !== "On Axis") {
+  //   return false;
+  // }
+  // if (selectedDifficulty === 1 && parseInt(trick.degreeOfRotation) >= 900) {
+  //   return false;
+  // }
 
-  if (selectedDifficulty && (trick.axis === "Bio" || trick.axis === "Misty")) {
-    return false;
-  }
+  // if (selectedDifficulty && (trick.axis === "Bio" || trick.axis === "Misty")) {
+  //   return false;
+  // }
 
-  if (selectedDifficulty < 4 && parseInt(trick.degreeOfRotation) >= 900) {
-    return false;
-  }
+  // if (selectedDifficulty < 4 && parseInt(trick.degreeOfRotation) >= 900) {
+  //   return false;
+  // }
 
-  if (selectedDifficulty < 4 && trick.spinDirection === "Switch" && trick.axis === "Cork" && parseInt(trick.degreeOfRotation) > 720) {
-    return false;
-  }
-  if (selectedDifficulty < 5 && trick.numberOfFlips === "Double") {
-    return false;
-  }
+  // if (selectedDifficulty < 4 && trick.spinDirection === "Switch" && trick.axis === "Cork" && parseInt(trick.degreeOfRotation) > 720) {
+  //   return false;
+  // }
+  // if (selectedDifficulty < 5 && trick.numberOfFlips === "Double") {
+  //   return false;
+  // }
   return true;
 }
 
 
 function generateTrick(maxDifficulty: number, minDifficulty: number, selectedDifficulty: number): Trick {
-  let selectedTrick: Trick;
-  while (true) {
+  // Difficulty-Level Pre-Filtering
+  const availableAxis = axisOptions.filter(axes => {
+    // Level 1 restriction (only On Axis)
+    if (selectedDifficulty === 1 && axes.name !== "On Axis") return false;
+    // Low-level Bio/Misty restriction
+    if (selectedDifficulty < 3 && (axes.name === "Bio" || axes.name === "Misty")) return false;
+    return true;
+  });
+
+  const availableRotation = degreeOfRotationOptions.filter(deg => {
+    // Level 1: < 720
+    if (selectedDifficulty === 1 && parseInt(deg.name) >= 720) return false;
+    // Level 1-3: < 900
+    if (selectedDifficulty < 4 && parseInt(deg.name) >= 900) return false;
+    if (selectedDifficulty < 5 && parseInt(deg.name) >= 1080) return false;
+    if (selectedDifficulty > 3 && parseInt(deg.name) <= 720) return false;
+    return true;
+  });
+
+  const availableFlips = numberOfFlipsOptions.filter(flips => {
+    // Level 1-4: No Double flips
+    if (selectedDifficulty < 5 && flips.name === "Double") return false;
+    return true;
+  });
+
+  // Limited Iteration with Pre-Filtering
+  for (let i = 0; i < 5; i++) {
     const stance = stanceOptions[Math.floor(Math.random() * stanceOptions.length)];
     const spinDirection = spinDirectionOptions[Math.floor(Math.random() * spinDirectionOptions.length)];
-    const numberOfFlips = numberOfFlipsOptions[Math.floor(Math.random() * numberOfFlipsOptions.length)];
-    const spinAmount = degreeOfRotationOptions[Math.floor(Math.random() * degreeOfRotationOptions.length)];
-    const axes = axisOptions[Math.floor(Math.random() * axisOptions.length)];
+    const numberOfFlips = availableFlips[Math.floor(Math.random() * availableFlips.length)];
+    const spinAmount = availableRotation[Math.floor(Math.random() * availableRotation.length)];
+    const axes = availableAxis[Math.floor(Math.random() * availableAxis.length)];
     const grab = grabOptions[Math.floor(Math.random() * grabOptions.length)];
+
+    // Calculate total difficulty 
+    let spinDirDiff = spinDirection.difficulty;
     if (spinDirection.name === "Unnatural" && axes.name !== "On Axis") {
-      spinDirection.difficulty += 10;
+      spinDirDiff += 20;
     }
-    let totalDifficulty = stance.difficulty + spinDirection.difficulty + numberOfFlips.difficulty + spinAmount.difficulty + axes.difficulty + grab.difficulty;
-    if (totalDifficulty > maxDifficulty + 1 && totalDifficulty < minDifficulty - 2) {
+
+    let totalDifficulty = stance.difficulty + spinDirDiff + numberOfFlips.difficulty + spinAmount.difficulty + axes.difficulty + grab.difficulty;
+
+    // Check difficulty range 
+    if (totalDifficulty > maxDifficulty || totalDifficulty < minDifficulty) {
       continue;
     }
-    selectedTrick = {
+
+    const selectedTrick = {
       stance: stance.name,
       spinDirection: spinDirection.name,
       numberOfFlips: numberOfFlips.name,
@@ -219,11 +245,16 @@ function generateTrick(maxDifficulty: number, minDifficulty: number, selectedDif
       degreeOfRotation: spinAmount.name,
       axis: axes.name !== "On Axis" ? axes.name : "",
     };
+
+    //  Only run the remaining, combinatorial isValidTrick rules
     if (isValidTrick(selectedTrick, selectedDifficulty)) {
-      break;
+      return selectedTrick;
     }
   }
-  return selectedTrick;
+
+  // Fallback: If 5 attempts failed, try a very simple trick or throw an error
+  // This should rarely be hit with proper pre-filtering.
+  return { stance: 'Forward', spinDirection: 'Natural', numberOfFlips: '', grab: 'Mute', degreeOfRotation: '', axis: 'Backflip' };
 }
 
 // --- END JUMP TRICK LOGIC ---
@@ -537,8 +568,8 @@ const handleBackToMenu = () => {
 
 export default function TrickDiceScreen() {
   const [trickText, setTrickText] = useState('Press the dice to generate your challenge!');
-  const [selectedDifficulty, setSelectedDifficulty] = useState(DIFFICULTY_LEVELS[1]); // Default to Intermediate
-  const [mode, setMode] = useState<Mode>('jumps'); // 'jumps' or 'rails'
+  const [selectedDifficulty, setSelectedDifficulty] = useState(DIFFICULTY_LEVELS[1]);
+  const [mode, setMode] = useState<Mode>('jumps');
 
   const handleGenerateTrick = useCallback(() => {
     const { maxDifficulty, minDifficulty, value: difficultyValue } = selectedDifficulty;
@@ -566,7 +597,7 @@ export default function TrickDiceScreen() {
       setTrickText(trickString.trim());
     }
 
-  }, [selectedDifficulty, mode]); // Add mode to dependencies
+  }, [selectedDifficulty, mode]);
 
   const handleSelectDifficulty = (levelValue: number) => {
     const newDifficulty = DIFFICULTY_LEVELS.find(d => d.value === levelValue);
@@ -577,26 +608,16 @@ export default function TrickDiceScreen() {
 
   const handleSelectMode = (newMode: Mode) => {
     setMode(newMode);
-    // Reset text when changing mode
     setTrickText(newMode === 'jumps' ? 'Roll for a Jump Trick' : 'Roll for a Rail Trick');
   };
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: Colors.lightCard, dark: Colors.darkCard }}
-      headerImage={
-        <View style={diceStyles.headerContainer}>
-          {/* --- Dynamic Header Icon --- */}
-          <Ionicons
-            size={150}
-            name={mode === 'jumps' ? "dice" : "snow"}
-            color={Colors.white}
-            style={diceStyles.diceIcon}
-          />
-        </View>
-      }
+    <ImageBackground
+      source={require('@/assets/images/background.png')}
+      style={diceStyles.backgroundImage}
+      resizeMode="cover"
     >
-      <ThemedView style={diceStyles.mainContainer}>
+      <SafeAreaView style={diceStyles.mainContainer}>
 
         {/* --- Mode Selector (Jumps/Rails) --- */}
         <ModeSwitch selectedMode={mode} onSelectMode={handleSelectMode} />
@@ -605,7 +626,7 @@ export default function TrickDiceScreen() {
         <ThemedView style={diceStyles.card}>
           <ThemedText type="subtitle" style={diceStyles.cardTitle}>Set Difficulty Level</ThemedText>
           <ThemedText style={diceStyles.currentDifficulty}>
-            Current: <ThemedText type="defaultSemiBold">{selectedDifficulty.name}</ThemedText>
+            Current: <ThemedText style={diceStyles.currentDifficulty} type="defaultSemiBold">{selectedDifficulty.name}</ThemedText>
           </ThemedText>
           <View style={diceStyles.difficultyButtonRow}>
             {DIFFICULTY_LEVELS.map((level) => (
@@ -628,12 +649,12 @@ export default function TrickDiceScreen() {
           <ThemedText style={diceStyles.generateButtonText}>
             ROLL FOR A {mode === 'jumps' ? 'JUMP' : 'RAIL'}
           </ThemedText>
-          <Ionicons name="dice-outline" size={28} color={Colors.white} />
+          <Ionicons name="dice-outline" size={28} color={Theme.cardBackground} />
         </TouchableOpacity>
 
         {/* --- Display Trick Card --- */}
         <ThemedView style={diceStyles.card}>
-          <ThemedText type="subtitle" style={diceStyles.cardTitle}>Your Random Challenge</ThemedText>
+          <ThemedText type="subtitle" style={diceStyles.cardTitle}>Generated Trick</ThemedText>
           <ThemedText style={diceStyles.trickDisplay}>
             {trickText}
           </ThemedText>
@@ -646,36 +667,36 @@ export default function TrickDiceScreen() {
           </TouchableOpacity>
         </ThemedView>
 
-      </ThemedView>
-    </ParallaxScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const diceStyles = StyleSheet.create({
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '120%',
+  },
   mainContainer: {
+    marginTop: "25%",
+    backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 20,
     minHeight: 500,
   },
-  headerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.darkCard,
-  },
-  diceIcon: {
-    opacity: 0.8,
-  },
+
+
   // --- Mode Switch Styles ---
   modeSwitchContainer: {
     flexDirection: 'row',
     width: '100%',
-    backgroundColor: Colors.inputBorder,
+    backgroundColor: Theme.border,
     borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.darkBlue,
+    borderColor: Theme.primary,
   },
   modeSwitchButton: {
     flex: 1,
@@ -686,24 +707,24 @@ const diceStyles = StyleSheet.create({
     gap: 8,
   },
   modeSwitchButtonDefault: {
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.cardBackground,
   },
   modeSwitchButtonSelected: {
-    backgroundColor: Colors.darkBlue,
+    backgroundColor: Theme.primary,
   },
   modeSwitchTextDefault: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.darkBlue,
+    color: Theme.primary,
   },
   modeSwitchTextSelected: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.white,
+    color: Theme.cardBackground,
   },
   // --- End Mode Switch Styles ---
   card: {
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.cardBackground,
     borderRadius: 15,
     padding: 20,
     shadowColor: '#000',
@@ -715,15 +736,15 @@ const diceStyles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.darkBlue,
+    color: Theme.primary,
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.inputBorder,
+    borderBottomColor: Theme.border,
     paddingBottom: 5,
   },
   currentDifficulty: {
     fontSize: 16,
-    color: Colors.textGrey,
+    color: Theme.darkText,
     marginBottom: 15,
   },
   difficultyButtonRow: {
@@ -739,33 +760,33 @@ const diceStyles = StyleSheet.create({
     borderWidth: 2,
   },
   difficultyButtonDefault: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.darkBlue,
+    backgroundColor: Theme.cardBackground,
+    borderColor: Theme.primary,
   },
   difficultyButtonSelected: {
-    backgroundColor: Colors.darkBlue,
-    borderColor: Colors.darkBlue,
+    backgroundColor: Theme.primary,
+    borderColor: Theme.primary,
   },
   difficultyTextDefault: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.darkBlue,
+    color: Theme.primary,
   },
   difficultyTextSelected: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.white,
+    color: Theme.cardBackground,
   },
   generateButton: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.greenButton,
+    backgroundColor: Theme.success,
     borderRadius: 15,
     paddingVertical: 20,
     gap: 10,
     elevation: 6,
-    shadowColor: Colors.darkText,
+    shadowColor: Theme.darkText,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -773,13 +794,13 @@ const diceStyles = StyleSheet.create({
   generateButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: Colors.white,
+    color: Theme.cardBackground,
     textTransform: 'uppercase', // Make it match the mode
   },
   trickDisplay: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.darkText,
+    color: Theme.darkText,
     textAlign: 'center',
     paddingVertical: 15,
     minHeight: 60,
@@ -787,10 +808,11 @@ const diceStyles = StyleSheet.create({
   backButtonContainer: {
     marginTop: 10,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   backButtonText: {
-    fontSize: 14,
-    color: Colors.textGrey,
+    fontSize: 16,
+    color: Theme.darkText,
     textDecorationLine: 'underline',
   }
 });

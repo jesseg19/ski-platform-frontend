@@ -1,6 +1,7 @@
 // components/ChallengeModal.tsx
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Theme } from '@/constants/theme';
 import { AntDesign } from '@expo/vector-icons';
 import React from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -14,7 +15,7 @@ interface GameTrick {
     setterLanded: boolean;
     receiverLanded: boolean;
     letterAssignedToId: number | null;
-    letterAssignedToUsername: number | null;
+    letterAssignedToUsername: string | null;
     trickDetails: string;
 }
 
@@ -31,7 +32,7 @@ export const GameTricksModal: React.FC<GameTricksModalProps> = ({ isVisible, onC
             <ScrollView style={styles.centeredView}>
                 <ThemedView style={styles.modalView}>
                     <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                        <AntDesign name="close-circle" size={24} color="gray" />
+                        <AntDesign name="close-circle" size={24} color={Theme.darkText} />
                     </TouchableOpacity>
                     <ThemedText style={styles.modalTitle}>Trick History</ThemedText>
                     <View style={styles.trickList}>
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
     centeredView: {
         flex: 1,
         paddingTop: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: Theme.overlay,
     },
     modalView: {
         margin: 20,
@@ -88,6 +89,7 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         marginBottom: 20,
+        color: Theme.darkText,
     },
     trickList: {
         width: '100%',
@@ -97,20 +99,23 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#e0e0e0',
+        borderColor: Theme.border,
     },
     trickName: {
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 5,
+        color: Theme.darkText,
     },
     trickDetails: {
         fontSize: 14,
         marginBottom: 2,
+        color: Theme.darkText,
     },
     noTricksText: {
         fontSize: 16,
         fontStyle: 'italic',
         textAlign: 'center',
+        color: Theme.darkText,
     },
 });

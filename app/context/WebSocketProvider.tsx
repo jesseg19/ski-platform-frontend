@@ -10,7 +10,7 @@ import SockJS from 'sockjs-client';
 
 const SOCKET_URL = 'https://laps.api.jessegross.ca/ws';
 // const SOCKET_URL = 'http://Laps-api-env.eba-7fvwzsz2.us-east-2.elasticbeanstalk.com/ws';
-// const SOCKET_URL = 'http://192.168.2.97:8080/ws';
+// const SOCKET_URL = 'http://192.168.2.97:5000/ws';
 
 interface User {
     userId: number;
@@ -24,7 +24,7 @@ interface ChallengeDto {
     challenger: User;
     challenged: User;
     status: Exclude<ChallengeStatus, 'SENDING'>;
-    gameId?: number;
+    gameId: number;
 }
 
 interface PlayerActionMessage {
@@ -100,7 +100,7 @@ interface ChallengeProviderProps {
 }
 
 export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
-    const { user } = useAuth();
+    const { user, tokenRefreshed } = useAuth();
     const router = useRouter();
 
     const [isConnected, setIsConnected] = useState(false);
@@ -126,6 +126,12 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         }
 
         const connect = async () => {
+            // Disconnect existing connection if any
+            if (clientRef.current?.active) {
+                console.log('Disconnecting existing WebSocket connection...');
+                clientRef.current.deactivate();
+            }
+
             let token = await SecureStore.getItemAsync('userAccessToken');
             if (!token) {
                 console.warn('No user token found, cannot connect WebSocket.');
@@ -143,9 +149,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 heartbeatOutgoing: 10000,
                 debug: async (str) => {
                     console.log('STOMP Debug:', str);
-                    token = await SecureStore.getItemAsync('userAccessToken');
                 },
                 onConnect: () => {
+                    console.log('WebSocket Connected');
                     setIsConnected(true);
 
                     client.subscribe(`/user/queue/challenges`, (message) => {
@@ -164,6 +170,14 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 onStompError: (frame) => {
                     console.error('Broker error:', frame);
                     console.error('Error message:', frame.headers?.message);
+
+
+                    // If authentication error, try to reconnect with fresh token
+                    if (frame.headers?.message?.includes('Authentication') ||
+                        frame.headers?.message?.includes('401') ||
+                        frame.headers?.message?.includes('403')) {
+                        console.log('Authentication error detected, will reconnect with new token');
+                    }
                 },
                 onWebSocketError: (event) => {
                     console.error('WebSocket error:', event);
@@ -182,7 +196,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 console.log('WebSocket Disconnected.');
             }
         };
-    }, [user]);
+    }, [user, tokenRefreshed]);
 
     const subscribeToGame = useCallback((gameId: number) => {
         if (!clientRef.current?.active) {
@@ -243,7 +257,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                                         pathname: '/(tabs)/game/1v1',
                                         params: {
                                             activeGame: JSON.stringify(gameData),
-                                            modalVisible: "false"
+                                            modalVisible: "false",
+                                            gameStatus: "playing"
+
                                         },
                                     });
                                 })

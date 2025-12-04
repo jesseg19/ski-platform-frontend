@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import TrickSelector from '@/components/trickSelector'; // Assuming this is a dropdown component
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
 import { AntDesign, Feather } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -130,7 +130,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, isOpen, 
                 <ThemedText style={revisedStyles.collapsibleHeaderText}>{title}</ThemedText>
                 {/* Optional: Add a subtle indicator if the section is 'filled' */}
             </View>
-            <Feather name={isOpen ? 'chevron-up' : 'chevron-down'} size={24} color={Colors.darkBlue} />
+            <Feather name={isOpen ? 'chevron-up' : 'chevron-down'} size={24} color={Theme.primary} />
         </TouchableOpacity>
         {isOpen && (<View style={revisedStyles.collapsibleContent}>{children}</View>)}
     </View>
@@ -148,14 +148,14 @@ const TrickTypeSlider: React.FC<TrickTypeSliderProps> = ({ selectedType, onSelec
             style={[revisedStyles.sliderButton, selectedType === 'jump' && revisedStyles.sliderButtonActive]}
             onPress={() => onSelect('jump')}
         >
-            <Feather name="maximize" size={18} color={selectedType === 'jump' ? Colors.white : Colors.textGrey} />
+            <Feather name="maximize" size={18} color={selectedType === 'jump' ? Theme.cardBackground : Theme.darkText} />
             <Text style={[revisedStyles.sliderButtonText, selectedType === 'jump' && revisedStyles.sliderButtonTextActive]}>Jump</Text>
         </TouchableOpacity>
         <TouchableOpacity
             style={[revisedStyles.sliderButton, selectedType === 'rail' && revisedStyles.sliderButtonActive]}
             onPress={() => onSelect('rail')}
         >
-            <Feather name="sidebar" size={18} color={selectedType === 'rail' ? Colors.white : Colors.textGrey} />
+            <Feather name="sidebar" size={18} color={selectedType === 'rail' ? Theme.cardBackground : Theme.darkText} />
             <Text style={[revisedStyles.sliderButtonText, selectedType === 'rail' && revisedStyles.sliderButtonTextActive]}>Rail</Text>
         </TouchableOpacity>
     </View>
@@ -355,7 +355,7 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                 <ThemedView style={revisedModalStyles.modalView}>
 
                     <TouchableOpacity style={revisedModalStyles.closeButton} onPress={onClose}>
-                        <AntDesign name="close-circle" size={30} color={Colors.textGrey} />
+                        <AntDesign name="close-circle" size={30} color={Theme.darkText} />
                     </TouchableOpacity>
 
                     <ThemedText style={revisedModalStyles.title}>Call a Trick</ThemedText>
@@ -465,13 +465,13 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                                             <ThemedText style={revisedStyles.swapLabel}>Swap #{index + 1}</ThemedText>
                                             <ButtonSelector label="" options={RAIL_SWAP_TYPE_OPTIONS} selectedValue={swap.type} onSelect={(v) => updateSwap(swap.id, 'type', v)} isRailSwap={true} />
                                             <TouchableOpacity style={revisedStyles.swapRemoveButton} onPress={() => removeSwap(swap.id)}>
-                                                <AntDesign name="close-circle" size={20} color={Colors.darkBlue} />
+                                                <AntDesign name="close-circle" size={20} color={Theme.primary} />
                                             </TouchableOpacity>
                                         </View>
                                     ))}
                                     <View style={revisedStyles.swapButtonContainer}>
                                         <TouchableOpacity style={revisedStyles.swapButton} onPress={addSwap}>
-                                            <AntDesign name="plus-circle" size={20} color={Colors.darkBlue} />
+                                            <AntDesign name="plus-circle" size={20} color={Theme.primary} />
                                             <Text style={revisedStyles.swapButtonText}>Add Swap</Text>
                                         </TouchableOpacity>
                                         {/* Removed the dedicated minus button, using the in-swap button for removal now */}
@@ -521,7 +521,7 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                                     setCustomTrick(text);
                                     if (text) setMode('custom');
                                 }}
-                                placeholderTextColor={Colors.textGrey}
+                                placeholderTextColor={Theme.darkText}
                             />
                         </CollapsibleSection>
                     </ScrollView>
@@ -533,7 +533,7 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                     </View>
 
                     <View style={revisedModalStyles.buttonContainer}>
-                        <CustomButton title="Cancel" onPress={onClose} isPrimary={false} style={{ width: '30%', backgroundColor: Colors.lightGrey, borderColor: Colors.textGrey, borderWidth: 1 }} />
+                        <CustomButton title="Cancel" onPress={onClose} isPrimary={false} style={{ width: '30%', backgroundColor: Theme.darkText, borderColor: Theme.darkText, borderWidth: 1 }} />
                         <CustomButton title="SET TRICK" onPress={handleCallTrick} isPrimary={true} style={{ width: '65%' }} />
                     </View>
 
@@ -547,100 +547,100 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
 // --- REVISED STYLES ---
 
 // Defined a couple of custom colors for better contrast/professionalism
-const CustomColors = {
-    // Assuming 'Colors' imports base theme colors
-    white: '#ffffff',
-    lightGrey: '#EAEAEA',
-    mediumGrey: '#CCCCCC', // Added for borders/separators
-    darkBlue: '#005A9C', // Primary/Accent Color
-    lightBlue: '#E6F0F8', // Subtle background for active/summary
-    textGrey: '#666666',
-    darkText: '#333333',
-    overlay: 'rgba(0, 0, 0, 0.4)',
-};
+// const CustomColors = {
+//     // Assuming 'Colors' imports base theme colors
+//     white: '#ffffff',
+//     lightGrey: '#EAEAEA',
+//     mediumGrey: '#CCCCCC', // Added for borders/separators
+//     darkBlue: '#005A9C', // Primary/Accent Color
+//     lightBlue: '#E6F0F8', // Subtle background for active/summary
+//     textGrey: '#666666',
+//     darkText: '#333333',
+//     overlay: 'rgba(0, 0, 0, 0.4)',
+// };
 
 const revisedModalStyles = StyleSheet.create({
-    centeredView: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: CustomColors.overlay }, // Modal slides up
+    centeredView: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: Theme.overlay }, // Modal slides up
     modalView: {
         margin: 0,
         width: '100%',
-        backgroundColor: CustomColors.white,
-        borderTopLeftRadius: 20, // Rounded top corners
+        backgroundColor: Theme.cardBackground,
+        borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
-        padding: 20, // Increased padding
+        padding: 20,
         alignItems: 'center',
         elevation: 10,
         maxHeight: '90%',
     },
     closeButton: { position: 'absolute', top: 15, right: 15, zIndex: 10 },
-    title: { fontSize: 26, fontWeight: '700', color: CustomColors.darkBlue, marginBottom: 5, marginTop: 15 }, // Bolder title
-    subtitle: { fontSize: 14, color: CustomColors.textGrey, marginBottom: 15, textAlign: 'center' },
-    listContainer: { width: '100%', flexGrow: 1, flexShrink: 1, paddingHorizontal: 5 }, // Added slight horizontal padding
+    title: { fontSize: 26, fontWeight: '700', color: Theme.primary, marginBottom: 5, marginTop: 15 },
+    subtitle: { fontSize: 14, color: Theme.darkText, marginBottom: 15, textAlign: 'center' },
+    listContainer: { width: '100%', flexGrow: 1, flexShrink: 1, paddingHorizontal: 5 },
     listContentContainer: { paddingBottom: 20 },
     summaryContainer: {
         width: '100%',
         paddingVertical: 15,
         paddingHorizontal: 20,
         marginVertical: 10,
-        backgroundColor: CustomColors.lightBlue,
+        backgroundColor: Theme.secondary,
         borderRadius: 12,
         alignItems: 'center',
-        borderWidth: 1, // Add subtle border
-        borderColor: CustomColors.mediumGrey,
+        borderWidth: 1,
+        borderColor: Theme.border,
     },
-    summaryText: { fontSize: 13, color: CustomColors.textGrey, marginBottom: 5, fontWeight: '500' },
-    currentTrick: { fontSize: 18, fontWeight: '700', textAlign: 'center', color: CustomColors.darkText, },
+    summaryText: { fontSize: 13, color: Theme.darkText, marginBottom: 5, fontWeight: '500' },
+    currentTrick: { fontSize: 18, fontWeight: '700', textAlign: 'center', color: Theme.darkText, },
     buttonContainer: {
         width: '100%',
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: 10,
-        paddingBottom: 5, // Space from the bottom edge
+        paddingBottom: 5,
     },
 });
 
 const revisedStyles = StyleSheet.create({
-    // --- SLIDER STYLES (More prominent, using icons) ---
+    // --- SLIDER STYLES ---
     sliderContainer: {
         flexDirection: 'row',
         width: '100%',
-        backgroundColor: CustomColors.lightGrey,
+        backgroundColor: Theme.mediumBackground,
         borderRadius: 10,
         marginBottom: 20,
         overflow: 'hidden',
-        padding: 2, // Inner padding to make active background look contained
+        padding: 2,
     },
     sliderButton: {
         flex: 1,
         height: 40,
-        flexDirection: 'row', // To align icon and text
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 8,
         paddingHorizontal: 10,
     },
     sliderButtonActive: {
-        backgroundColor: CustomColors.darkBlue,
+        backgroundColor: Theme.primary,
         elevation: 2,
     },
     sliderButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: CustomColors.textGrey,
-        marginLeft: 8, // Space between icon and text
+        color: Theme.darkText,
+        marginLeft: 8,
     },
     sliderButtonTextActive: {
-        color: CustomColors.white,
+        color: Theme.cardBackground,
     },
     // --- COLLAPSIBLE STYLES (Cleaner borders, less background) ---
     collapsibleContainer: {
         width: '100%',
         marginBottom: 10,
         borderWidth: 1,
-        borderColor: CustomColors.mediumGrey,
-        borderRadius: 12, // Rounded corners for the container
+        borderColor: Theme.mediumBackground,
+        borderRadius: 12,
         overflow: 'hidden',
-        backgroundColor: CustomColors.white
+        backgroundColor: Theme.cardBackground
     },
     collapsibleHeader: {
         flexDirection: 'row',
@@ -648,64 +648,64 @@ const revisedStyles = StyleSheet.create({
         alignItems: 'center',
         width: '100%',
         paddingVertical: 15,
-        paddingHorizontal: 15, // Increased padding
-        backgroundColor: CustomColors.white,
+        paddingHorizontal: 15,
+        backgroundColor: Theme.cardBackground,
     },
     collapsibleHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
-    collapsibleHeaderText: { fontSize: 18, fontWeight: '700', color: CustomColors.darkText, },
+    collapsibleHeaderText: { fontSize: 18, fontWeight: '700', color: Theme.darkText, },
     collapsibleContent: {
         width: '100%',
         padding: 15,
-        backgroundColor: CustomColors.white, // Keep background consistent, use internal padding
+        backgroundColor: Theme.cardBackground, // Keep background consistent, use internal padding
         borderTopWidth: 1,
-        borderColor: CustomColors.lightGrey
+        borderColor: Theme.border
     },
-    builderSectionTitle: { fontSize: 15, fontWeight: '600', color: CustomColors.darkBlue, marginTop: 10, marginBottom: 5 },
+    builderSectionTitle: { fontSize: 15, fontWeight: '600', color: Theme.primary, marginTop: 10, marginBottom: 5 },
     // --- BUTTON SELECTOR STYLES (More visual weight for selection) ---
     buttonSelectorContainer: { marginBottom: 15, },
-    buttonSelectorLabel: { fontSize: 14, fontWeight: '600', color: CustomColors.textGrey, marginBottom: 8, },
+    buttonSelectorLabel: { fontSize: 14, fontWeight: '600', color: Theme.darkText, marginBottom: 8, },
     buttonRow: { flexDirection: 'row', flexWrap: 'wrap', },
     optionButton: {
         paddingVertical: 10, // Increased vertical padding
         paddingHorizontal: 15,
-        backgroundColor: CustomColors.white,
+        backgroundColor: Theme.cardBackground,
         borderWidth: 1.5, // Thicker border
-        borderColor: CustomColors.mediumGrey,
+        borderColor: Theme.mediumBackground,
         borderRadius: 25, // More rounded pill shape
         margin: 4,
     },
     optionButtonSelected: {
-        backgroundColor: CustomColors.darkBlue,
-        borderColor: CustomColors.darkBlue,
+        backgroundColor: Theme.primary,
+        borderColor: Theme.primary,
         elevation: 2
     },
-    optionButtonText: { fontSize: 14, color: CustomColors.darkText, fontWeight: '500' },
-    optionButtonTextSelected: { color: CustomColors.white, fontWeight: '700', },
+    optionButtonText: { fontSize: 14, color: Theme.darkText, fontWeight: '500' },
+    optionButtonTextSelected: { color: Theme.cardBackground, fontWeight: '700', },
     // --- CUSTOM TRICK ---
     textInput: {
         width: '100%', height: 50,
-        borderColor: CustomColors.mediumGrey,
+        borderColor: Theme.mediumBackground,
         borderWidth: 1,
         borderRadius: 10, // More rounded corners
         paddingHorizontal: 15,
         fontSize: 16,
-        backgroundColor: CustomColors.white,
-        color: CustomColors.darkText
+        backgroundColor: Theme.cardBackground,
+        color: Theme.darkText
     },
     // --- SWAP STYLES (Cleaner, integrated removal) ---
     swapContainer: {
         position: 'relative',
         borderWidth: 1,
-        borderColor: CustomColors.lightBlue,
+        borderColor: Theme.secondary,
         borderRadius: 8,
         padding: 10,
         marginBottom: 10,
-        backgroundColor: CustomColors.lightBlue,
+        backgroundColor: Theme.secondary,
     },
     swapLabel: {
         fontSize: 14,
         fontWeight: '700',
-        color: CustomColors.darkText,
+        color: Theme.darkText,
         marginBottom: 5
     },
     swapOptionButton: {
@@ -731,12 +731,12 @@ const revisedStyles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 8,
         paddingHorizontal: 15,
-        backgroundColor: CustomColors.lightGrey,
+        backgroundColor: Theme.background,
         borderRadius: 20,
     },
     swapButtonText: {
         marginLeft: 8,
-        color: CustomColors.darkBlue,
+        color: Theme.primary,
         fontWeight: '600',
         fontSize: 15,
     }

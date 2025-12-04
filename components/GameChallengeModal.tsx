@@ -2,7 +2,7 @@ import api from '@/auth/axios';
 import { OpponentSearch } from '@/components/opponent-search';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
 import React, { useCallback, useEffect } from 'react';
 import { Alert, Modal, StyleSheet, View } from 'react-native';
 import { useChallenge } from '../app/context/WebSocketProvider';
@@ -13,7 +13,7 @@ interface GamePlayer {
     userId: number;
     username: string;
     finalLetters: number;
-    playerNumber: 1 | 2; // Can restrict to 1 or 2 if that's standard
+    playerNumber: 1 | 2;
 }
 
 interface GameChallengeModalProps {
@@ -28,13 +28,13 @@ interface GameChallengeModalProps {
 
 // Assuming your modalStyles are defined here or imported
 const modalStyles = StyleSheet.create({
-    centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.overlay },
-    modalView: { width: '85%', padding: 25, borderRadius: 15, alignItems: 'center', backgroundColor: Colors.white, elevation: 20 },
+    centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.overlay },
+    modalView: { width: '85%', padding: 25, borderRadius: 15, alignItems: 'center', backgroundColor: Theme.cardBackground, elevation: 20 },
     closeButton: { position: 'absolute', top: 15, right: 15, zIndex: 10 },
-    modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: Colors.darkBlue },
+    modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: Theme.primary },
     playerInfo: { marginBottom: 15, width: '100%' },
-    playerLabel: { fontSize: 14, color: Colors.textGrey },
-    playerUsername: { fontSize: 18, fontWeight: 'bold', color: Colors.darkText, paddingVertical: 5 },
+    playerLabel: { fontSize: 14, color: Theme.darkText },
+    playerUsername: { fontSize: 18, fontWeight: 'bold', color: Theme.darkText, paddingVertical: 5 },
     buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 20 },
 });
 
@@ -145,7 +145,7 @@ export const GameChallengeModal: React.FC<GameChallengeModalProps> = ({
                     </View>
 
                     {isChallengePending && (
-                        <ThemedText style={{ color: Colors.darkBlue, marginTop: 15, fontWeight: 'bold' }}>
+                        <ThemedText style={{ color: Theme.primary, marginTop: 15, fontWeight: 'bold' }}>
                             You have already sent a challenge to {p2User.username}! Waiting for them to accept...
                         </ThemedText>
                     )}

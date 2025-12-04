@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { CustomButton } from './CustomButton';
@@ -12,7 +12,7 @@ interface GameRoundActionsProps {
     lettersEarned: number;
     playerAction: 'land' | 'fail' | null;
     lastTryPlayer: string | null;
-    gameStatus: 'playing' | 'gameOver';
+    gameStatus: 'playing' | 'gameOver' | 'pending';
     getActionDisabled: (player: string) => boolean;
     handlePlayerAction: (player: GamePlayer, action: 'land' | 'fail') => void;
     handleLastTryAction: (action: 'land' | 'fail') => Promise<void>;
@@ -27,7 +27,7 @@ interface GamePlayer {
 
 const mainStyles = StyleSheet.create({
     playerContainer: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.cardBackground,
         borderRadius: 20,
         padding: 20,
         marginBottom: 20,
@@ -44,12 +44,12 @@ const mainStyles = StyleSheet.create({
         marginBottom: 15,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.inputBorder,
+        borderBottomColor: Theme.border,
     },
     playerNameText: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     playerActions: {
         flexDirection: 'row',

@@ -5,23 +5,10 @@ import React, { useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { OpponentSearch } from '@/components/opponent-search';
+import { Theme } from '@/constants/theme';
 import { AntDesign, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-
-
-const Colors = {
-    lightBlue: '#EAF7FE', // Main background
-    greenButton: '#85E34A', // Used for "View Match" buttons
-    darkBlue: '#406080', // Logo and main icons
-    textGrey: '#555',
-    darkText: '#333',
-    white: '#FFFFFF',
-    cardBackground: '#FFFFFF',
-    separator: '#EEE',
-    profileText: '#2D3E50',
-    rankText: '#6A7E9A',
-    overlay: 'rgba(255, 255, 255, 0.7)', // Overlay for background image
-};
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface User {
     id: number;
@@ -32,7 +19,6 @@ interface UserSearchResult {
     username: string;
 }
 
-// Define the shape of a Pending Friend Request (returned in /api/friends/pending)
 interface PendingRequest {
     id: number;
     requester: User; // The user who sent the request
@@ -40,15 +26,13 @@ interface PendingRequest {
     status: 'PENDING';
     createdAt: string;
 }
-
-// Define the shape of the selected user (optional, but good practice)
 interface SelectedUser {
     username: string;
 }
 
 export default function FriendsScreen() {
     const [addFriendsModalVisible, setAddFriendsModalVisible] = React.useState(false);
-    const [friendRequestStatus, setFriendRequestStatus] = React.useState(''); // To show success/error message
+    const [friendRequestStatus, setFriendRequestStatus] = React.useState('');
 
     const [friendsList, setFriendsList] = useState<User[]>([]);
     const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
@@ -60,7 +44,6 @@ export default function FriendsScreen() {
         setFriendRequestStatus('');
     }
 
-    // *** NEW HANDLER: Send API Request ***
     const handleSendFriendRequest = async () => {
         if (!selectedUserToFriend || selectedUserToFriend.id === -1) {
             setFriendRequestStatus('Please select a valid user first.');
@@ -74,19 +57,16 @@ export default function FriendsScreen() {
             });
 
             setFriendRequestStatus(`Friend request sent to ${selectedUserToFriend.username}!`);
-            // Optionally, close the modal after a delay
-            setTimeout(closeAddFriendsModal, 2000);
+            setTimeout(closeAddFriendsModal, 500);
 
         } catch (error: any) {
             console.error('Failed to send friend request:', error);
-            // Display a helpful error message from the API response if possible
             const errorMessage = error.response?.data?.message || 'Failed to send request. Already friends or request pending?';
             setFriendRequestStatus(errorMessage);
         }
     };
 
     const addFriends = () => {
-        // In a real app, this would lead to a dedicated settings/edit page
         setAddFriendsModalVisible(true);
     }
 
@@ -120,34 +100,30 @@ export default function FriendsScreen() {
         refreshData();
     }, []);
 
-    // --- NEW: Friend Response Logic (Endpoint 2) ---
     const handleRespondToRequest = async (requestId: number, action: 'accept' | 'decline') => {
         try {
             await api.post('/api/friends/respond', {
                 requestId: requestId,
                 action: action,
             });
-
-            // Refresh the lists to update the UI
             refreshData();
 
         } catch (error) {
             console.error(`Failed to ${action} request ${requestId}:`, error);
-            // Handle error (e.g., show an alert to the user)
         }
     };
 
     return (
-        <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                    <AntDesign name="arrow-left" size={24} color={Colors.darkBlue} />
+                    <AntDesign name="arrow-left" size={24} color={Theme.darkText} />
                 </TouchableOpacity>
-                <ThemedText style={styles.headerTitle}>Notifications</ThemedText>
+                <ThemedText style={styles.headerTitle}>Friends</ThemedText>
             </View>
             <ThemedText style={styles.title}>Friends</ThemedText>
             <TouchableOpacity onPress={(addFriends)} style={styles.iconButton}>
-                <Feather name="user-plus" size={24} color={Colors.darkBlue} />
+                <Feather name="user-plus" size={24} color={Theme.darkText} />
             </TouchableOpacity>
 
             {/* --- PENDING REQUESTS SECTION --- */}
@@ -159,7 +135,6 @@ export default function FriendsScreen() {
                     pendingRequests.map((request) => (
                         // Key off the request ID
                         <ThemedView key={request.id} style={styles.requestItem}>
-                            {/* ACCESS THE REQUESTER'S USERNAME */}
                             <ThemedText style={styles.requesterText}>
                                 {request.requester.username}
                             </ThemedText>
@@ -190,7 +165,6 @@ export default function FriendsScreen() {
                 ) : (
                     friendsList.map(friend => (
                         <ThemedText key={friend.id} style={styles.friendItem}>
-                            {/* FRIEND LIST ALREADY HAS USER OBJECTS */}
                             {friend.username}
                         </ThemedText>
                     ))
@@ -204,21 +178,19 @@ export default function FriendsScreen() {
                 visible={addFriendsModalVisible}
                 onRequestClose={closeAddFriendsModal}
             >
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.overlay }}>
-                    <View style={{ width: '85%', backgroundColor: Colors.white, borderRadius: 15, padding: 25, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.overlay }}>
+                    <View style={{ width: '85%', backgroundColor: Theme.cardBackground, borderRadius: 15, padding: 25, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
 
-                        <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: Colors.darkBlue, marginBottom: 20 }}>Add Friend</ThemedText>
+                        <ThemedText style={{ fontSize: 22, fontWeight: 'bold', color: Theme.primary, marginBottom: 20 }}>Add Friend</ThemedText>
 
                         <OpponentSearch
-                            // Pass the current selected user to maintain the text input state
                             selectedUsername={selectedUserToFriend?.username || ''}
-                            // Set the selected user in local state when a search result is tapped
                             onUserSelect={setSelectedUserToFriend}
                         />
 
                         {/* Display status messages */}
                         {friendRequestStatus ? (
-                            <ThemedText style={{ color: friendRequestStatus.includes('sent') ? Colors.greenButton : 'red', marginTop: 15, textAlign: 'center' }}>
+                            <ThemedText style={{ color: friendRequestStatus.includes('sent') ? Theme.primary : 'red', marginTop: 15, textAlign: 'center' }}>
                                 {friendRequestStatus}
                             </ThemedText>
                         ) : null}
@@ -227,7 +199,7 @@ export default function FriendsScreen() {
                         <TouchableOpacity
                             style={{
                                 marginTop: 20,
-                                backgroundColor: Colors.greenButton,
+                                backgroundColor: Theme.primary,
                                 padding: 15,
                                 borderRadius: 12,
                                 alignItems: 'center',
@@ -237,7 +209,7 @@ export default function FriendsScreen() {
                             onPress={handleSendFriendRequest}
                             disabled={!selectedUserToFriend?.id || selectedUserToFriend.id <= 0 || friendRequestStatus.includes('Sending')}
                         >
-                            <ThemedText style={{ color: Colors.white, fontWeight: 'bold', fontSize: 16 }}>
+                            <ThemedText style={{ color: Theme.cardBackground, fontWeight: 'bold', fontSize: 16 }}>
                                 Send Friend Request to {selectedUserToFriend?.username || 'User'}
                             </ThemedText>
                         </TouchableOpacity>
@@ -247,13 +219,13 @@ export default function FriendsScreen() {
                             style={{ marginTop: 15, alignItems: 'center' }}
                             onPress={closeAddFriendsModal}
                         >
-                            <ThemedText style={{ color: Colors.rankText, fontSize: 14 }}>Cancel</ThemedText>
+                            <ThemedText style={{ color: Theme.darkText, fontSize: 14 }}>Cancel</ThemedText>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
 
-        </ThemedView>
+        </SafeAreaView>
     );
 }
 
@@ -262,12 +234,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
-        paddingTop: 30,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         marginLeft: 16,
+        color: Theme.darkText,
     },
     container: {
         flex: 1,
@@ -277,6 +249,7 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 16,
+        color: Theme.darkText,
     },
     iconButton: {
         padding: 5,
@@ -285,7 +258,7 @@ const styles = StyleSheet.create({
         maxHeight: '40%',
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#ddd',
+        borderColor: Theme.border,
         borderRadius: 8,
     },
     scrollViewContent: {
@@ -296,34 +269,33 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginTop: 10,
         marginBottom: 8,
+        color: Theme.darkText,
     },
     noDataText: {
         textAlign: 'center',
-        color: '#888',
+        color: Theme.placeholder,
         padding: 10,
     },
-    // Styles for Accepted Friends List
     friendItem: {
         paddingVertical: 12,
         paddingHorizontal: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: Theme.border,
         fontSize: 16,
     },
-    // Styles for Pending Requests
     requestItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
+        borderBottomColor: Theme.border,
         paddingHorizontal: 8,
     },
     requesterText: {
         fontSize: 16,
         fontWeight: '500',
-        flex: 1, // Allows the username to take up available space
+        flex: 1,
     },
     actionButtons: {
         flexDirection: 'row',
@@ -335,10 +307,10 @@ const styles = StyleSheet.create({
         borderRadius: 5,
     },
     acceptButton: {
-        backgroundColor: 'green',
+        backgroundColor: Theme.success,
     },
     declineButton: {
-        backgroundColor: 'red',
+        backgroundColor: Theme.danger,
     },
     buttonText: {
         color: '#fff',

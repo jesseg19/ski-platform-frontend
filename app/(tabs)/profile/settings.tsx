@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, StyleSheet } from 'react-native';
+import { Button } from 'react-native';
 
 
 import { ThemedText } from '@/components/themed-text';
@@ -23,6 +23,3 @@ export default function SettingsScreen() {
 
 }
 
-const styles = StyleSheet.create({
-
-});

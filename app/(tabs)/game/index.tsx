@@ -1,13 +1,12 @@
-// --- ChoseGameModeScreen.tsx (Refactored) ---
-
 import api from '@/auth/axios';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
+
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // --- Imports from refactored files ---
 import LeaderboardModal from '@/components/LeaderboardModal';
@@ -51,8 +50,8 @@ const DesignButton: React.FC<DesignButtonProps> = ({ title, description, onPress
                 isPrimary ? styles.primaryButton : styles.secondaryButton,
             ]}
         >
-            <ThemedText style={[styles.buttonTitle, { color: isPrimary ? Colors.white : Colors.darkBlue }]}>{title}</ThemedText>
-            <ThemedText style={[styles.buttonDescription, { color: isPrimary ? Colors.white : Colors.textGrey }]}>{description}</ThemedText>
+            <ThemedText style={[styles.buttonTitle, { color: isPrimary ? Theme.background : Theme.primary }]}>{title}</ThemedText>
+            <ThemedText style={[styles.buttonDescription, { color: isPrimary ? Theme.background : Theme.primary }]}>{description}</ThemedText>
         </Pressable>
     );
 };
@@ -82,28 +81,23 @@ export default function ChoseGameModeScreen() {
         }
     }, [leaderboardModalVisible, tab, fetchAllTimeLeaderboard, fetchMonthlyLeaderboard]);
 
-    // Handler for opening the modal (Calls the fetch logic via useEffect)
     const handleOpenLeaderboard = () => {
         setLeaderboardModalVisible(true);
     };
 
-    // Handler for changing the tab
     const handleTabChange = useCallback((newTab: 'allTime' | 'monthly') => {
         setTab(newTab);
     }, []);
 
-    // Helper to get the correct data based on the active tab
     const getActiveLeaderboardData = () => {
         return tab === 'allTime' ? allTimeData : monthlyData;
     };
 
-    // Original Navigation Handlers (Untouched as they are specific to this screen's logic)
     const navigateToTrickGenerator = () => {
         router.push('/(tabs)/game/trickGenerator');
     };
 
     const navigateToChallengeFriend = async () => {
-        // ... (Original API logic for checking active game)
         try {
             const response = await api.get('/api/games/active');
             const gameData: ActiveGameProps | null = response.data;
@@ -128,13 +122,13 @@ export default function ChoseGameModeScreen() {
             style={styles.backgroundImage}
             resizeMode="cover"
         >
-            <ThemedView style={styles.mainContainer}>
+            <SafeAreaView style={styles.mainContainer}>
 
                 {/* --- Header & Leaderboard Button --- */}
                 <View style={styles.header}>
                     <View style={styles.logoContainer}>
                         <ImageBackground
-                            source={require('@/assets/images/logo.png')}
+                            source={require('@/assets/images/logo.webp')}
                             style={styles.mountainPlaceholder}
                             resizeMode="contain"
                         />
@@ -143,7 +137,7 @@ export default function ChoseGameModeScreen() {
                         style={styles.leaderboardButton}
                         onPress={handleOpenLeaderboard}
                     >
-                        <Ionicons name="trophy" size={30} color={Colors.darkBlue} />
+                        <Ionicons name="trophy" size={30} color={Theme.accent} />
                     </TouchableOpacity>
                 </View>
 
@@ -162,9 +156,8 @@ export default function ChoseGameModeScreen() {
                         isPrimary={false}
                     />
                 </ScrollView>
-            </ThemedView>
+            </SafeAreaView>
 
-            {/* --- LEADERBOARD MODAL (Presentational Component) --- */}
             <LeaderboardModal
                 isVisible={leaderboardModalVisible}
                 onClose={() => setLeaderboardModalVisible(false)}
@@ -179,7 +172,6 @@ export default function ChoseGameModeScreen() {
     );
 }
 
-// --- Styles (Only styles not related to the modal are kept here) ---
 const styles = StyleSheet.create({
     backgroundImage: {
         flex: 1,
@@ -189,7 +181,6 @@ const styles = StyleSheet.create({
     },
     mainContainer: {
         flex: 1,
-        paddingTop: 50,
         backgroundColor: 'transparent',
     },
     header: {
@@ -233,11 +224,11 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     primaryButton: {
-        backgroundColor: Colors.greenButton,
+        backgroundColor: Theme.primary,
     },
     secondaryButton: {
-        backgroundColor: Colors.secondaryBlue,
-        borderColor: '#DDD',
+        backgroundColor: Theme.secondary,
+        borderColor: Theme.border,
         borderWidth: 1,
     },
     buttonTitle: {
@@ -245,11 +236,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         paddingTop: 10,
         paddingBottom: 20,
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     buttonDescription: {
         fontSize: 18,
         textAlign: 'center',
-        color: Colors.textGrey,
+        color: Theme.lightText,
     },
 });
