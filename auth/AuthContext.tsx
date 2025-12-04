@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { setSignOutCallback } from './axios';
 
 interface User {
   username: string;
@@ -13,6 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: User | null;
+  tokenRefreshed: number;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -29,13 +31,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [tokenRefreshed, setTokenRefreshed] = useState(0);
+
+  const signOut = useCallback(async () => {
+    await SecureStore.deleteItemAsync('userAccessToken');
+    await SecureStore.deleteItemAsync('userRefreshToken');
+    await SecureStore.deleteItemAsync('userData');
+    setIsAuthenticated(false);
+    setUser(null);
+    router.replace('/(public)/signup'); // Navigate to a public route
+  }, []);
+
+  useEffect(() => {
+    // Register sign out callback for axios interceptor
+    setSignOutCallback(signOut);
+  }, [signOut]);
 
   useEffect(() => {
     // Check for a token on app launch
     const checkTokenAndUser = async () => {
       try {
         const accessToken = await SecureStore.getItemAsync('userAccessToken');
-        const refreshToken = await SecureStore.getItemAsync('userRefreshToken'); // Load Refresh Token
+        const refreshToken = await SecureStore.getItemAsync('userRefreshToken');
         const userDataJson = await SecureStore.getItemAsync('userData');
 
         if (accessToken && refreshToken && userDataJson) {
@@ -63,16 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace('/(tabs)/game');
   };
 
-  const signOut = async () => {
-    await SecureStore.deleteItemAsync('userAccessToken');
-    await SecureStore.deleteItemAsync('userRefreshToken');
-    await SecureStore.deleteItemAsync('userData');
-    setIsAuthenticated(false);
-    setUser(null);
-    router.replace('/(public)/signup'); // Navigate to a public route
-  };
-
-  const value = { signIn, signOut, isAuthenticated, isLoading, user };
+  const value = { signIn, signOut, isAuthenticated, isLoading, user, tokenRefreshed };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

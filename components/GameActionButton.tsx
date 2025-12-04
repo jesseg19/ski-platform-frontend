@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, ViewStyle, useColorScheme } from 'react-native';
 import { AppStyles } from '../constants/AppStyles';
 
-import { Colors } from '../constants/theme';
+import { Theme } from '../constants/theme';
 
 interface GameActionButtonProps {
     title: string;
@@ -14,7 +14,7 @@ interface GameActionButtonProps {
 
 const GameActionButton: React.FC<GameActionButtonProps> = ({ title, onPress, colorType, disabled, style }) => {
     const scheme = useColorScheme();
-    const color = Colors[scheme ?? 'light'][colorType];
+    const color = colorType === 'success' ? (scheme === 'dark' ? '#4CAF50' : '#2196F3') : (scheme === 'dark' ? '#F44336' : '#FF5722');
     const disabledColor = scheme === 'dark' ? '#333' : '#ddd';
 
     return (
@@ -37,7 +37,7 @@ const GameActionButton: React.FC<GameActionButtonProps> = ({ title, onPress, col
 
 const styles = StyleSheet.create({
     buttonText: {
-        color: 'white',
+        color: Theme.lightText,
         fontSize: 18,
         fontWeight: 'bold',
     },

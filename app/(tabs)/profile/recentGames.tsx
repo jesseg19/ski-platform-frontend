@@ -6,28 +6,14 @@ import { AntDesign, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, LayoutAnimation, Platform, StyleSheet, TouchableOpacity, UIManager, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Theme } from '../../../constants/theme';
 
 // Enable LayoutAnimation for smooth list item expansion
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const Colors = {
-    greenButton: '#85E34A',
-    darkBlue: '#406080',
-    textGrey: '#555',
-    darkText: '#333',
-    white: '#FFFFFF',
-    lightBlue: '#F0F8FF',
-    inputBorder: '#D0E0F0',
-    overlay: 'rgba(0, 0, 0, 0.4)',
-    danger: '#E74C3C',
-    success: '#85E34A',
-    warning: '#FFC300', // For paused games
-    lightCard: '#A1CEDC',
-};
-
-// --- DATA INTERFACES ---
 interface GamePlayer {
     userId: number;
     username: string;
@@ -55,29 +41,42 @@ interface PausedGame {
     players: GamePlayer[];
     createdAt: string;
     lastActivityAt: string;
-    status: 'paused' | 'active'; // Paused games list only shows 'paused'
+    status: 'paused' | 'active';
 }
 
 interface RecentGame {
     gameId: number;
     winnerId: number;
-    datePlayed: string; // Changed to string to match typical API response
+    datePlayed: string;
     userLetters: number;
     opponentLetters: number;
     opponentUsername: string;
 };
 
-// --- HELPER COMPONENTS ---
+interface GameStateDto {
+    gameId: number;
+    status: string;
+    currentTurnUserId: number;
+    players: {
+        userId: number;
+        username: string;
+        playerNumber: number;
+        finalLetters: number;
+    }[];
+    tricks: any[];
+    totalTricks: number;
+}
+
 
 // Component for rendering a single trick in the expanded list
 const TrickItem: React.FC<{ trick: GameTrick; players: GamePlayer[] }> = ({ trick, players }) => {
     const setter = trick.setterUsername;
     const receiver = trick.receiverUsername;
     const getOutcome = () => {
-        if (trick.setterLanded && trick.receiverLanded) return { icon: 'checkmark-circle', color: Colors.success, text: 'Both Landed' };
-        if (trick.setterLanded && !trick.receiverLanded) return { icon: 'close-circle', color: Colors.danger, text: `${receiver} got letter` };
-        if (!trick.setterLanded && trick.receiverLanded) return { icon: 'close-circle', color: Colors.danger, text: `${setter} got letter` };
-        return { icon: 'arrow-forward-circle', color: Colors.warning, text: 'TURN OVER' };
+        if (trick.setterLanded && trick.receiverLanded) return { icon: 'checkmark-circle', color: Theme.success, text: 'Both Landed' };
+        if (trick.setterLanded && !trick.receiverLanded) return { icon: 'close-circle', color: Theme.danger, text: `${receiver} got letter` };
+        if (!trick.setterLanded && trick.receiverLanded) return { icon: 'close-circle', color: Theme.danger, text: `${setter} got letter` };
+        return { icon: 'arrow-forward-circle', color: Theme.warning, text: 'TURN OVER' };
     };
 
     const outcome = getOutcome();
@@ -116,6 +115,7 @@ const GameListItem: React.FC<{
     const [tricks, setTricks] = useState<GameTrick[]>([]);
     const [loadingTricks, setLoadingTricks] = useState(false);
 
+
     // Determines display text based on game type
     const opponentName = isPaused
         ? (game as PausedGame).players.find(p => p.userId !== userId)?.username || 'Opponent'
@@ -124,7 +124,7 @@ const GameListItem: React.FC<{
     const isWinner = !isPaused && (game as RecentGame).winnerId === userId;
     const isLoser = !isPaused && (game as RecentGame).winnerId !== userId;
     const statusText = isPaused ? 'Paused' : (isWinner ? 'Won' : 'Lost');
-    const statusColor = isPaused ? Colors.warning : (isWinner ? Colors.success : Colors.danger);
+    const statusColor = isPaused ? Theme.warning : (isWinner ? Theme.success : Theme.danger);
     const statusIcon = isPaused ? 'pause-circle' : (isWinner ? 'trophy' : 'close-circle');
 
     // Score display
@@ -198,13 +198,13 @@ const GameListItem: React.FC<{
                     <ThemedText style={listStyles.dateText}>{dateDisplay}</ThemedText>
                     {isPaused ? (
                         <TouchableOpacity style={listStyles.resumeButton} onPress={() => onResume(game.gameId, game as PausedGame)}>
-                            <Ionicons name="play-circle" size={30} color={Colors.darkBlue} />
+                            <Ionicons name="play-circle" size={30} color={Theme.primary} />
                         </TouchableOpacity>
                     ) : (
                         <Ionicons
                             name={isExpanded ? "chevron-up" : "chevron-down"}
                             size={24}
-                            color={Colors.darkText}
+                            color={Theme.darkText}
                         />
                     )}
                 </View>
@@ -215,7 +215,7 @@ const GameListItem: React.FC<{
                 <ThemedView style={listStyles.trickListContainer}>
                     <ThemedText style={listStyles.trickListTitle}>Game History</ThemedText>
                     {loadingTricks ? (
-                        <ThemedText style={{ textAlign: 'center', color: Colors.textGrey }}>Loading tricks...</ThemedText>
+                        <ThemedText style={{ textAlign: 'center', color: Theme.darkText }}>Loading tricks...</ThemedText>
                     ) : (
                         tricks.length > 0 ? (
                             <FlatList
@@ -233,7 +233,7 @@ const GameListItem: React.FC<{
                                 scrollEnabled={false}
                             />
                         ) : (
-                            <ThemedText style={{ textAlign: 'center', color: Colors.textGrey }}>No tricks recorded for this game.</ThemedText>
+                            <ThemedText style={{ textAlign: 'center', color: Theme.darkText }}>No tricks recorded for this game.</ThemedText>
                         )
                     )}
                 </ThemedView>
@@ -248,6 +248,7 @@ export default function RecentGames() {
     const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
     const [pausedGames, setPausedGames] = useState<PausedGame[]>([]);
     const [tab, setTab] = useState<'current' | 'past'>('current'); // State for tab navigation
+    const [loading, setLoading] = React.useState(false);
 
     const userId = user?.id;
 
@@ -285,6 +286,33 @@ export default function RecentGames() {
 
     // --- GAME RESUME HANDLER ---
     const resumeGame = useCallback(async (gameId: number, game: PausedGame) => {
+        const activeGameCheck = await api.get('/api/games/active/check');
+
+        if (activeGameCheck.data.hasActiveGame) {
+            Alert.alert(
+                'Active Game Exists',
+                'You already have an active game. Please finish or pause it before accepting a new challenge.',
+                [
+                    {
+                        text: 'Go to Active Game',
+                        onPress: async () => {
+                            // Get the active game details
+                            const activeGameResponse = await api.get('/api/games/active');
+                            const gameData: GameStateDto = activeGameResponse.data;
+
+                            // Navigate to the active game
+                            router.push({
+                                pathname: '/(tabs)/game/1v1',
+                                params: { activeGame: JSON.stringify(gameData) }
+                            });
+                        }
+                    },
+                    { text: 'Cancel', style: 'cancel' }
+                ]
+            );
+            setLoading(false);
+            return;
+        }
         try {
             await api.put(`/api/games/${gameId}/resume`);
 
@@ -327,7 +355,7 @@ export default function RecentGames() {
             contentContainerStyle={listStyles.flatListContent}
             ListEmptyComponent={() => (
                 <ThemedView style={listStyles.emptyContainer}>
-                    <MaterialIcons name={isPausedList ? "pause-circle-outline" : "history"} size={50} color={Colors.textGrey} />
+                    <MaterialIcons name={isPausedList ? "pause-circle-outline" : "history"} size={50} color={Theme.darkText} />
                     <ThemedText style={listStyles.emptyText}>
                         {isPausedList ? "You have no paused games. Start a new challenge!" : "You have no recorded past games."}
                     </ThemedText>
@@ -337,10 +365,10 @@ export default function RecentGames() {
     );
 
     return (
-        <ThemedView style={mainStyles.container}>
+        <SafeAreaView style={mainStyles.container}>
             <View style={mainStyles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={mainStyles.iconButton}>
-                    <AntDesign name="arrow-left" size={24} color={Colors.darkBlue} />
+                    <AntDesign name="arrow-left" size={24} color={Theme.darkText} />
                 </TouchableOpacity>
                 <ThemedText style={mainStyles.headerTitle}>Recent Games</ThemedText>
             </View>
@@ -370,36 +398,38 @@ export default function RecentGames() {
                 {tab === 'past' && renderList(recentGames, false)}
             </ThemedView>
 
-        </ThemedView >
+        </SafeAreaView >
     );
 }
 
-// --- STYLESHEETS (Updated and Refined) ---
+// --- STYLESHEETS ---
 
 const mainStyles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.lightBlue,
+        backgroundColor: Theme.secondary,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         marginLeft: 16,
+        color: Theme.darkText,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
-        paddingTop: 40,
+        marginTop: 16,
     },
     iconButton: {
         padding: 8,
+        marginLeft: 16,
     },
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.cardBackground,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.inputBorder,
+        borderBottomColor: Theme.border,
     },
     tabButton: {
         flex: 1,
@@ -409,15 +439,15 @@ const mainStyles = StyleSheet.create({
         borderBottomColor: 'transparent',
     },
     tabButtonActive: {
-        borderBottomColor: Colors.darkBlue,
+        borderBottomColor: Theme.primary,
     },
     tabText: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.textGrey,
+        color: Theme.darkText,
     },
     tabTextActive: {
-        color: Colors.darkBlue,
+        color: Theme.primary,
     },
     listContent: {
         flex: 1,
@@ -430,7 +460,7 @@ const listStyles = StyleSheet.create({
         gap: 15,
     },
     card: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.cardBackground,
         borderRadius: 15,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -451,7 +481,7 @@ const listStyles = StyleSheet.create({
     opponentName: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     statusBadge: {
         flexDirection: 'row',
@@ -459,7 +489,6 @@ const listStyles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 10,
-        // Background color is set inline based on statusColor
     },
     statusText: {
         marginLeft: 5,
@@ -471,11 +500,11 @@ const listStyles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 5,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.inputBorder,
+        borderBottomColor: Theme.border,
     },
     scoreText: {
         fontSize: 15,
-        color: Colors.textGrey,
+        color: Theme.darkText,
     },
     footerRow: {
         flexDirection: 'row',
@@ -485,7 +514,7 @@ const listStyles = StyleSheet.create({
     },
     dateText: {
         fontSize: 12,
-        color: Colors.textGrey,
+        color: Theme.darkText,
     },
     resumeButton: {
         paddingHorizontal: 5,
@@ -493,15 +522,15 @@ const listStyles = StyleSheet.create({
     trickListContainer: {
         paddingHorizontal: 15,
         paddingBottom: 15,
-        backgroundColor: Colors.lightBlue,
+        backgroundColor: Theme.secondary,
         borderTopWidth: 1,
-        borderTopColor: Colors.inputBorder,
+        borderTopColor: Theme.border,
         marginHorizontal: 0,
     },
     trickListTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: Colors.darkBlue,
+        color: Theme.primary,
         paddingTop: 10,
         paddingBottom: 5,
     },
@@ -515,19 +544,19 @@ const listStyles = StyleSheet.create({
         marginTop: 10,
         fontSize: 16,
         textAlign: 'center',
-        color: Colors.textGrey,
+        color: Theme.darkText,
     }
 });
 
 const trickListStyles = StyleSheet.create({
     trickItem: {
         paddingVertical: 10,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.cardBackground,
         borderRadius: 8,
         padding: 10,
         marginTop: 8,
         borderLeftWidth: 4,
-        borderLeftColor: Colors.darkBlue,
+        borderLeftColor: Theme.primary,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -543,7 +572,7 @@ const trickListStyles = StyleSheet.create({
     turnNumber: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: Colors.darkBlue,
+        color: Theme.primary,
     },
     outcomeBadge: {
         flexDirection: 'row',
@@ -560,7 +589,7 @@ const trickListStyles = StyleSheet.create({
     trickDetails: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.darkText,
+        color: Theme.darkText,
         marginBottom: 5,
     },
     resultSummary: {
@@ -568,11 +597,11 @@ const trickListStyles = StyleSheet.create({
         justifyContent: 'space-between',
         marginTop: 5,
         borderTopWidth: 1,
-        borderTopColor: Colors.inputBorder,
+        borderTopColor: Theme.border,
         paddingTop: 5,
     },
     resultText: {
         fontSize: 13,
-        color: Colors.textGrey,
+        color: Theme.darkText,
     }
 });

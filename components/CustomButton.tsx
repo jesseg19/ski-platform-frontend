@@ -1,5 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
 import React from 'react';
 import { StyleSheet, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 
@@ -13,21 +13,21 @@ const buttonStyles = {
         justifyContent: "center",
     } as ViewStyle,
     primaryButton: {
-        backgroundColor: Colors.greenButton,
+        backgroundColor: Theme.success,
     } as ViewStyle,
     secondaryButton: {
-        backgroundColor: Colors.textGrey,
+        backgroundColor: Theme.darkText,
     } as ViewStyle,
 };
 
 const textStyles = {
     primaryButtonText: {
-        color: Colors.white,
+        color: Theme.lightText,
         fontWeight: 'bold',
         fontSize: 16,
     } as TextStyle,
     secondaryButtonText: {
-        color: Colors.white,
+        color: Theme.lightText,
         fontWeight: 'bold',
         fontSize: 16,
     } as TextStyle,

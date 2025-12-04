@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme'; // Adjust path
+import { Theme } from '@/constants/theme';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -17,13 +17,13 @@ const letterStyles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: Colors.inputBorder,
+        borderColor: Theme.border,
     },
     boxBlue: {
-        backgroundColor: Colors.darkBlue, // Available
+        backgroundColor: Theme.primary,
     },
     boxRed: {
-        backgroundColor: Colors.danger, // Earned
+        backgroundColor: Theme.danger,
     },
     text: {
         color: 'white',

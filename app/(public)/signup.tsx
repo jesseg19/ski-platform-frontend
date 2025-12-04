@@ -1,5 +1,6 @@
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
+import { Theme } from '@/constants/theme';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -22,10 +23,6 @@ import {
   isErrorWithCode,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
-
-const PRIMARY_COLOR = '#8CD62B';
-const BACKGROUND_COLOR = '#F9F9F9';
-const BORDER_COLOR = '#E0E0E0';
 
 GoogleSignin.configure({
   webClientId: '789488486637-uhm44ifm2hamqo3c75h3rmunj35a3d2f.apps.googleusercontent.com',
@@ -252,7 +249,7 @@ export default function AuthScreen() {
       </TouchableOpacity>
       <View style={styles.logoPlaceholder}>
         <ImageBackground
-          source={require('@/assets/images/logo.png')}
+          source={require('@/assets/images/logo.webp')}
           style={styles.logoPlaceholder}
           resizeMode="contain"
         />
@@ -456,7 +453,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   skipText: {
-    color: PRIMARY_COLOR,
+    color: Theme.primary,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -485,11 +482,11 @@ const styles = StyleSheet.create({
   input: {
     width: '100%',
     height: 50,
-    backgroundColor: BACKGROUND_COLOR,
+    backgroundColor: Theme.background,
     borderRadius: 10,
     paddingHorizontal: 15,
     borderWidth: 1,
-    borderColor: BORDER_COLOR,
+    borderColor: Theme.border,
     marginBottom: 15, // Default input spacing
     fontSize: 16, // Added font size to ensure visibility
     paddingRight: 50, // Added padding to prevent text under the eye icon
@@ -511,13 +508,13 @@ const styles = StyleSheet.create({
   mainButton: {
     width: '100%',
     height: 50,
-    backgroundColor: PRIMARY_COLOR,
+    backgroundColor: Theme.primary,
     borderRadius: 10, // More subtle rounding
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 15,
     marginBottom: 20,
-    shadowColor: PRIMARY_COLOR,
+    shadowColor: Theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -543,7 +540,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: BORDER_COLOR,
+    borderColor: Theme.border,
     backgroundColor: 'white',
     marginBottom: 10,
   },

@@ -4,7 +4,7 @@
     "slug": "ski-platform",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo_background.png",
+    "icon": "./assets/images/logo_background.webp",
     "scheme": "skiplatform",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -26,9 +26,9 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/logo_background.png",
-        "backgroundImage": "./assets/images/logo_background.png",
-        "monochromeImage": "./assets/images/logo_background.png"
+        "foregroundImage": "./assets/images/logo_background.webp",
+        "backgroundImage": "./assets/images/logo_background.webp",
+        "monochromeImage": "./assets/images/logo_background.webp"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -44,7 +44,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo_background.png",
+          "image": "./assets/images/logo_background.webp",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

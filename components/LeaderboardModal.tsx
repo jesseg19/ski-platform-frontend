@@ -2,7 +2,8 @@
 
 import { ThemedText } from '@/components/themed-text';
 import { leaderboardStyles } from '@/constants/AppStyles';
-import { Colors } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
+
 import { LeaderboardEntry } from '@/hooks/useLeaderboard'; // Import interface from hook
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -19,7 +20,7 @@ interface LeaderboardItemProps {
 const LeaderboardItem: React.FC<LeaderboardItemProps> = ({ item, index, tab }) => {
     const rank = index + 1;
     const isTopThree = rank <= 3;
-    let rankColor = isTopThree ? (rank === 1 ? Colors.gold : rank === 2 ? Colors.silver : Colors.bronze) : Colors.textGrey;
+    let rankColor = isTopThree ? (rank === 1 ? Theme.gold : rank === 2 ? Theme.silver : Theme.bronze) : Theme.darkText;
 
     const statsText = tab === 'monthly' ? `${item.monthlyEloGain} this month` : `${item.eloRating} elo`;
 
@@ -29,7 +30,7 @@ const LeaderboardItem: React.FC<LeaderboardItemProps> = ({ item, index, tab }) =
             activeOpacity={0.8}
         >
             <View style={[leaderboardStyles.itemContainer, {
-                backgroundColor: isTopThree ? rankColor + '30' : Colors.white
+                backgroundColor: isTopThree ? rankColor + '30' : Theme.background
             }]}>
                 {/* Rank Section */}
                 <View style={leaderboardStyles.rankSection}>
@@ -99,7 +100,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isVisible, onClose,
                     <View style={leaderboardStyles.modalHeader}>
                         <ThemedText style={leaderboardStyles.modalTitle}>Global Leaderboard 🏆</ThemedText>
                         <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={30} color={Colors.darkText} />
+                            <Ionicons name="close" size={30} color={Theme.darkText} />
                         </TouchableOpacity>
                     </View>
 

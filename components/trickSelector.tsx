@@ -1,13 +1,13 @@
-import { Colors } from '@/constants/theme';
-import { AntDesign } from '@expo/vector-icons'; // Import an icon
-import React, { useState } from 'react'; // Import useState
+import { Theme } from '@/constants/theme';
+import { AntDesign } from '@expo/vector-icons';
+import React, { useState } from 'react';
 import {
-    FlatList, // Import FlatList
-    Modal, // Import Modal
+    FlatList,
+    Modal,
     StyleSheet,
     Text,
     TouchableOpacity,
-    TouchableWithoutFeedback, // Import TouchableWithoutFeedback
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 
@@ -15,9 +15,9 @@ interface TrickSelectorProps {
     label: string;
     options: string[];
     selectedValue: string | null;
-    onSelect: (value: string | null) => void; // Allow null for deselecting/placeholders
+    onSelect: (value: string | null) => void;
     disabled?: boolean;
-    placeholder?: string; // Add placeholder prop
+    placeholder?: string;
 }
 
 const TrickSelector: React.FC<TrickSelectorProps> = ({
@@ -26,7 +26,7 @@ const TrickSelector: React.FC<TrickSelectorProps> = ({
     selectedValue,
     onSelect,
     disabled = false,
-    placeholder = "-- Select --", // Default placeholder
+    placeholder = "-- Select --",
 }) => {
     const [modalVisible, setModalVisible] = useState(false);
 
@@ -46,7 +46,7 @@ const TrickSelector: React.FC<TrickSelectorProps> = ({
                 <Text style={[styles.dropdownButtonText, !selectedValue && styles.placeholderText]}>
                     {selectedValue || placeholder}
                 </Text>
-                <AntDesign name="down" size={16} color={Colors.textGrey} />
+                <AntDesign name="down" size={16} color={Theme.darkText} />
             </TouchableOpacity>
 
             <Modal
@@ -86,40 +86,39 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 16,
-        fontWeight: '500', // Changed weight for new style
+        fontWeight: '500',
         marginBottom: 8,
-        color: Colors.textGrey, // Use theme color
+        color: Theme.darkText,
     },
-    // New styles for dropdown button
     dropdownButton: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 15,
-        backgroundColor: Colors.white, // Use theme color
+        backgroundColor: Theme.background,
         borderWidth: 1,
-        borderColor: Colors.lightGrey, // Use theme color
+        borderColor: Theme.lightText,
         borderRadius: 8,
-        height: 50, // Fixed height for consistency
+        height: 50,
     },
     dropdownButtonText: {
         fontSize: 16,
-        color: Colors.darkText, // Use theme color
+        color: Theme.darkText,
     },
     placeholderText: {
-        color: Colors.textGrey, // Use theme color
+        color: Theme.darkText,
     },
     // Modal styles
     modalOverlay: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: Theme.overlay,
     },
     modalContent: {
         width: '80%',
-        backgroundColor: Colors.white, // Use theme color
+        backgroundColor: Theme.cardBackground,
         borderRadius: 10,
         maxHeight: '60%',
         overflow: 'hidden',
@@ -127,20 +126,13 @@ const styles = StyleSheet.create({
     optionButton: {
         padding: 15,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.lightGrey, // Use theme color
+        borderBottomColor: Theme.lightText,
     },
     optionText: {
         fontSize: 16,
-        color: Colors.darkText, // Use theme color
+        color: Theme.darkText,
         textAlign: 'center',
     },
-    // Removing old button group styles
-    // buttonGroup: { ... },
-    // button: { ... },
-    // buttonActive: { ... },
-    // buttonInactive: { ... },
-    // textActive: { ... },
-    // textInactive: { ... },
 });
 
 export default TrickSelector;

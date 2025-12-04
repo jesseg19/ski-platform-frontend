@@ -1,5 +1,5 @@
 import { Dimensions, StyleSheet } from 'react-native';
-import { Colors } from './theme';
+import { Theme } from './theme';
 
 const { width } = Dimensions.get('window');
 
@@ -83,7 +83,6 @@ export const mainStyles = StyleSheet.create({
     },
     mainContainer: {
         flex: 1,
-        paddingTop: 50,
         backgroundColor: 'transparent',
     },
     backgroundImage: {
@@ -101,7 +100,7 @@ export const mainStyles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.cardBackground,
         borderRadius: 15,
         padding: 15,
         marginBottom: 10,
@@ -109,22 +108,22 @@ export const mainStyles = StyleSheet.create({
     },
     statusTitle: {
         fontSize: 18,
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     callSetButton: {
-        backgroundColor: Colors.darkBlue,
+        backgroundColor: Theme.primary,
         paddingVertical: 10,
         paddingHorizontal: 15,
         borderRadius: 10,
 
     },
     callSetButtonText: {
-        color: Colors.white,
+        color: Theme.lightText,
         fontWeight: 'bold',
         fontSize: 14,
     },
     trickDisplayCard: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.lightText,
         borderRadius: 15,
         padding: 15,
         marginBottom: 15,
@@ -133,30 +132,30 @@ export const mainStyles = StyleSheet.create({
     },
     trickLabel: {
         fontSize: 14,
-        color: Colors.textGrey,
+        color: Theme.darkText,
     },
     trickValue: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: Colors.darkBlue,
+        color: Theme.darkText,
         textAlign: 'center',
         marginTop: 5,
     },
     messageCard: {
-        backgroundColor: Colors.lightBlue,
+        backgroundColor: Theme.lightText,
         borderRadius: 15,
         padding: 15,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: Colors.inputBorder,
+        borderColor: Theme.border,
     },
     messageText: {
         fontSize: 16,
         textAlign: 'center',
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     playerContainer: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.background,
         borderRadius: 20,
         padding: 20,
         marginBottom: 20,
@@ -173,12 +172,12 @@ export const mainStyles = StyleSheet.create({
         marginBottom: 15,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.inputBorder,
+        borderBottomColor: Theme.border,
     },
     playerNameText: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     playerActions: {
         flexDirection: 'row',
@@ -186,7 +185,7 @@ export const mainStyles = StyleSheet.create({
         gap: 15,
     },
     gameOverCard: {
-        backgroundColor: Colors.danger,
+        backgroundColor: Theme.danger,
         borderRadius: 15,
         padding: 15,
         marginBottom: 10,
@@ -198,17 +197,17 @@ export const mainStyles = StyleSheet.create({
     },
     backButtonText: {
         fontSize: 14,
-        color: Colors.textGrey,
+        color: Theme.darkText,
         textDecorationLine: 'underline',
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: Colors.overlay,
+        backgroundColor: Theme.overlay,
         justifyContent: 'center',
         alignItems: 'center',
     },
     modalContent: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.background,
         borderRadius: 20,
         padding: 25,
         width: '90%',
@@ -222,12 +221,12 @@ export const mainStyles = StyleSheet.create({
     modalTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.darkBlue,
+        color: Theme.darkText,
         marginBottom: 15,
     },
     modalMessage: {
         fontSize: 16,
-        color: Colors.textGrey,
+        color: Theme.darkText,
         marginBottom: 20,
         textAlign: 'center',
     },
@@ -253,13 +252,13 @@ export const letterStyles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: Colors.inputBorder,
+        borderColor: Theme.border,
     },
     boxBlue: {
-        backgroundColor: Colors.darkBlue, // Blue for available
+        backgroundColor: Theme.primary, // Blue for available
     },
     boxRed: {
-        backgroundColor: Colors.danger, // Red for earned
+        backgroundColor: Theme.danger, // Red for earned
     },
     text: {
         color: 'white',
@@ -272,7 +271,7 @@ export const letterStyles = StyleSheet.create({
 export const trickModalStyles = StyleSheet.create({
     centeredView: {
         flex: 1,
-        backgroundColor: Colors.overlay,
+        backgroundColor: Theme.overlay,
         justifyContent: 'center',
     },
     scrollViewContent: {
@@ -280,7 +279,7 @@ export const trickModalStyles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     modalView: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.background,
         borderRadius: 20,
         padding: 25,
         width: '100%',
@@ -300,48 +299,47 @@ export const trickModalStyles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.darkBlue,
+        color: Theme.darkText,
         marginBottom: 5,
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.textGrey,
+        color: Theme.lightText,
         marginBottom: 20,
         textAlign: 'center',
     },
     summaryContainer: {
         width: '100%',
-        backgroundColor: Colors.lightBlue,
+        backgroundColor: Theme.lightText,
         borderRadius: 10,
         padding: 15,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: Colors.inputBorder,
+        borderColor: Theme.border,
     },
     summaryText: {
         fontSize: 14,
-        color: Colors.textGrey,
+        color: Theme.lightText,
         marginBottom: 5,
     },
     currentTrick: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: Colors.darkText,
+        color: Theme.darkText,
     }
 });
 
-// --- Stylesheet for Opponent Search Modal (Custom Button only, remaining styles assumed from previous step) ---
+// --- Stylesheet for Opponent Search Modal  ---
 export const modalStyles = StyleSheet.create({
-    // ... (Keep existing modal styles from the previous response) ...
     centeredView: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.overlay,
+        backgroundColor: Theme.overlay,
     },
     modalView: {
         margin: 20,
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.background,
         borderRadius: 20,
         padding: 25,
         alignItems: 'center',
@@ -362,7 +360,7 @@ export const modalStyles = StyleSheet.create({
     modalTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.darkBlue,
+        color: Theme.darkText,
         marginBottom: 25,
     },
     playerInfo: {
@@ -371,20 +369,20 @@ export const modalStyles = StyleSheet.create({
     },
     playerLabel: {
         fontSize: 14,
-        color: Colors.textGrey,
+        color: Theme.lightText,
         fontWeight: '600',
         marginBottom: 5,
     },
     playerUsername: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: Colors.darkText,
-        backgroundColor: Colors.lightBlue,
+        color: Theme.darkText,
+        backgroundColor: Theme.lightText,
         padding: 10,
         borderRadius: 8,
         marginBottom: 15,
         borderWidth: 1,
-        borderColor: Colors.inputBorder,
+        borderColor: Theme.border,
     },
     buttonContainer: {
         width: '100%',
@@ -397,21 +395,21 @@ export const modalStyles = StyleSheet.create({
         alignItems: 'center',
     },
     primaryButton: {
-        backgroundColor: Colors.greenButton,
+        backgroundColor: Theme.primary,
 
     },
     secondaryButton: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.background,
         borderWidth: 1,
-        borderColor: Colors.textGrey,
+        borderColor: Theme.border,
     },
     primaryButtonText: {
-        color: Colors.white,
+        color: Theme.background,
         fontSize: 16,
         fontWeight: 'bold',
     },
     secondaryButtonText: {
-        color: Colors.textGrey,
+        color: Theme.lightText,
         fontSize: 16,
         fontWeight: 'bold',
     },
@@ -423,11 +421,11 @@ export const modalStyles = StyleSheet.create({
 export const leaderboardStyles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: Colors.overlay,
+        backgroundColor: Theme.overlay,
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.background,
         borderTopLeftRadius: 25,
         borderTopRightRadius: 25,
         paddingHorizontal: 20,
@@ -443,11 +441,11 @@ export const leaderboardStyles = StyleSheet.create({
     modalTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: Colors.lightGrey,
+        backgroundColor: Theme.lightText,
         borderRadius: 10,
         marginBottom: 15,
         padding: 4,
@@ -459,7 +457,7 @@ export const leaderboardStyles = StyleSheet.create({
         borderRadius: 8,
     },
     tabButtonActive: {
-        backgroundColor: Colors.darkBlue,
+        backgroundColor: Theme.darkText,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
@@ -469,10 +467,10 @@ export const leaderboardStyles = StyleSheet.create({
     tabText: {
         fontSize: 16,
         fontWeight: '600',
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     tabTextActive: {
-        color: Colors.white,
+        color: Theme.background,
     },
     listContainer: {
         flex: 1,
@@ -485,7 +483,7 @@ export const leaderboardStyles = StyleSheet.create({
         textAlign: 'center',
         paddingVertical: 40,
         fontSize: 16,
-        color: Colors.textGrey,
+        color: Theme.lightText,
     },
     itemContainer: {
         flexDirection: 'row',
@@ -493,7 +491,7 @@ export const leaderboardStyles = StyleSheet.create({
         paddingHorizontal: 15,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: Colors.lightGrey,
+        borderColor: Theme.lightText,
         alignItems: 'center',
     },
     rankSection: {
@@ -511,7 +509,7 @@ export const leaderboardStyles = StyleSheet.create({
     username: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: Colors.darkText,
+        color: Theme.darkText,
     },
     eloSection: {
         width: 100,

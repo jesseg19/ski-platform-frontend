@@ -1,27 +1,15 @@
-import api from '@/auth/axios'; // Adjust import path as needed
-import { ThemedText } from '@/components/themed-text'; // Adjust import path as needed
-import { ThemedView } from '@/components/themed-view'; // Adjust import path as needed
+import api from '@/auth/axios';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Theme } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Re-using the same Colors object from your original file
-const Colors = {
-    lightBlue: '#EAF7FE',
-    greenButton: '#85E34A',
-    darkBlue: '#406080',
-    textGrey: '#555',
-    darkText: '#333',
-    white: '#FFFFFF',
-    cardBackground: '#FFFFFF',
-    separator: '#EEE',
-    profileText: '#2D3E50',
-    rankText: '#6A7E9A',
-    overlay: 'rgba(255, 255, 255, 0.7)',
-};
 
-// --- Profile Card Component (Copied from original for re-use) ---
+// --- Profile Card Component ---
 
 interface ProfileCardProps {
     title: string;
@@ -72,13 +60,13 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ title, children, actionText, 
     </ThemedView>
 );
 
-// --- NEW COMPONENT: Head-to-Head Comparison Card ---
+// --- Stat Comparison Card ---
 
 interface ComparisonCardProps {
     username: string;
     totalMatches: number;
-    winsAgainst: number; // Wins for the current profile (viewed player)
-    winsFor: number; // Wins for the viewer (current user)
+    winsAgainst: number;
+    winsFor: number;
 }
 
 const ComparisonCard: React.FC<ComparisonCardProps> = ({ username, totalMatches, winsAgainst, winsFor }) => {
@@ -93,21 +81,21 @@ const ComparisonCard: React.FC<ComparisonCardProps> = ({ username, totalMatches,
                     <ThemedText style={styles.comparisonLabel}>Total Matches</ThemedText>
                 </View>
 
-                <View style={styles.separatorVertical} />
+                <View style={styles.borderVertical} />
 
                 <View style={styles.comparisonStat}>
-                    <ThemedText style={[styles.comparisonValue, { color: Colors.greenButton }]}>{winsAgainst}</ThemedText>
+                    <ThemedText style={[styles.comparisonValue, { color: Theme.success }]}>{winsAgainst}</ThemedText>
                     <ThemedText style={styles.comparisonLabel}>{username}&apos;s Wins</ThemedText>
                 </View>
 
-                <View style={styles.separatorVertical} />
+                <View style={styles.borderVertical} />
 
                 <View style={styles.comparisonStat}>
-                    <ThemedText style={[styles.comparisonValue, { color: Colors.darkBlue }]}>{winsFor}</ThemedText>
+                    <ThemedText style={[styles.comparisonValue, { color: Theme.primary }]}>{winsFor}</ThemedText>
                     <ThemedText style={styles.comparisonLabel}>Your Wins</ThemedText>
                 </View>
 
-                <View style={styles.separatorVertical} />
+                <View style={styles.borderVertical} />
 
                 <View style={styles.comparisonStat}>
                     <ThemedText style={styles.comparisonValue}>{winPercentage}%</ThemedText>
@@ -156,31 +144,30 @@ export default function OtherPlayerProfileScreen() {
 
     return (
         <ImageBackground
-            source={require('@/assets/images/background.png')} // Adjust path
+            source={require('@/assets/images/background.png')}
             style={styles.backgroundImage}
             resizeMode="cover"
         >
-            <ThemedView style={styles.mainContainer}>
+            <SafeAreaView style={styles.mainContainer}>
                 <View style={styles.header}>
                     {/* Back Button */}
                     <TouchableOpacity onPress={() => router.push("/(tabs)/profile")} style={styles.iconButton}>
-                        <Feather name="arrow-left" size={24} color={Colors.darkBlue} />
+                        <Feather name="arrow-left" size={28} color={Theme.darkText} />
                     </TouchableOpacity>
 
                     {/* S.K.I. Logo */}
-                    <View style={styles.logoContainer}>
-                        {/* <Image source={require('@/assets/images/logo.png')} style={styles.mountainLogo} /> */}
+                    {/* <View style={styles.logoContainer}>
+                        {/* <Image source={require('@/assets/images/logo.png')} style={styles.mountainLogo} /> 
                         <ThemedText style={styles.logoText}>S.K.I.</ThemedText>
-                    </View>
+                    </View> */}
 
-                    <View style={{ width: 34 }} /> {/* Spacer to align logo center */}
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollViewContent}>
 
                     {/* Profile Header Block */}
                     <View style={styles.profileHeaderBlock}>
-                        <Image source={require('@/assets/images/avatar.jpg')} style={styles.avatar} />
+                        <Image source={require('@/assets/images/avatar.webp')} style={styles.avatar} />
                         <ThemedText style={styles.username}>{profileData.username}</ThemedText>
                         <ThemedText style={styles.rank}>ELO: {profileData.eloRating}</ThemedText>
                         <ThemedText style={styles.bio}>{profileData.bio || 'No bio available.'}</ThemedText>
@@ -213,12 +200,11 @@ export default function OtherPlayerProfileScreen() {
                         </View>
                     </ProfileCard>
 
-                    {/* Recent Tricks/Games Card (Unchanged) */}
+                    {/* Recent Tricks/Games Card */}
                     {profileData.recentGame && (
                         <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { alert('View their full match history!'); }}>
                             <View style={styles.recentTrickRow}>
-                                {/* ... Existing Recent Game Layout ... */}
-                                <Image source={require('@/assets/images/avatar.jpg')} style={styles.recentTrickAvatar} />
+                                <Image source={require('@/assets/images/avatar.webp')} style={styles.recentTrickAvatar} />
                                 <View style={styles.recentTrickDetails}>
                                     <ThemedText style={styles.recentTrickOpponent}>vs. {profileData.recentGame.opponentUsername}</ThemedText>
                                     <ThemedText style={styles.recentTrickScore}>Played: {new Date(profileData.recentGame.datePlayed).toLocaleDateString()}</ThemedText>
@@ -229,47 +215,41 @@ export default function OtherPlayerProfileScreen() {
                             </View>
                         </ProfileCard>
                     )}
-
-                    {/* Achievements / Badges Card (Add back if implemented) */}
-                    {/* ... */}
-
                 </ScrollView>
-            </ThemedView>
+            </SafeAreaView>
         </ImageBackground>
     );
 }
 
-// --- Stylesheet (Extend and add comparison styles) ---
 
 const styles = StyleSheet.create({
-    // --- Existing Styles (omitted for brevity, assume they are the same) ---
-    backgroundImage: { flex: 1, width: '100%', height: '120%', paddingTop: 50, },
-    mainContainer: { flex: 1, paddingTop: 50, backgroundColor: 'transparent', },
+    backgroundImage: { flex: 1, width: '100%', height: '120%', },
+    mainContainer: { flex: 1, backgroundColor: 'transparent', },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20, },
     iconButton: { padding: 5, },
     logoContainer: { flexDirection: 'row', alignItems: 'center', gap: 5, },
-    logoText: { fontSize: 18, fontWeight: 'bold', color: Colors.darkBlue, },
+    logoText: { fontSize: 18, fontWeight: 'bold', color: Theme.primary, },
     scrollViewContent: { paddingHorizontal: 20, paddingBottom: 40, },
     profileHeaderBlock: { alignItems: 'center', paddingVertical: 10, },
-    avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: Colors.white, marginBottom: 8, },
-    username: { fontSize: 22, fontWeight: 'bold', color: Colors.profileText, },
-    rank: { fontSize: 16, color: Colors.rankText, marginBottom: 4, },
-    bio: { fontSize: 14, color: Colors.textGrey, marginBottom: 10, },
-    card: { backgroundColor: Colors.cardBackground, borderRadius: 15, padding: 15, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 3, },
+    avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: Theme.cardBackground, marginBottom: 8, },
+    username: { fontSize: 22, fontWeight: 'bold', color: Theme.darkText, },
+    rank: { fontSize: 16, color: Theme.darkText, marginBottom: 4, },
+    bio: { fontSize: 14, color: Theme.darkText, marginBottom: 10, },
+    card: { backgroundColor: Theme.cardBackground, borderRadius: 15, padding: 15, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 3, },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, },
-    cardTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.darkText, },
-    cardActionText: { fontSize: 14, color: Colors.darkBlue, fontWeight: '600', },
+    cardTitle: { fontSize: 16, fontWeight: 'bold', color: Theme.darkText, },
+    cardActionText: { fontSize: 14, color: Theme.primary, fontWeight: '600', },
     statsRow: { flexDirection: 'row', justifyContent: 'space-around', },
     statItem: { alignItems: 'center', flex: 1, },
-    statValue: { fontSize: 18, fontWeight: 'bold', color: Colors.darkText, },
-    statLabel: { fontSize: 12, color: Colors.textGrey, marginTop: 2, },
+    statValue: { fontSize: 18, fontWeight: 'bold', color: Theme.darkText, },
+    statLabel: { fontSize: 12, color: Theme.darkText, marginTop: 2, },
     recentTrickRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, },
     recentTrickAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10, },
     recentTrickDetails: { flex: 1, },
-    recentTrickOpponent: { fontSize: 16, fontWeight: '600', color: Colors.darkText, },
-    recentTrickScore: { fontSize: 12, color: Colors.textGrey, },
-    recentTrickScoreBox: { backgroundColor: Colors.lightBlue, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginRight: 10, },
-    recentTrickScoreValue: { fontSize: 14, fontWeight: 'bold', color: Colors.darkBlue, },
+    recentTrickOpponent: { fontSize: 16, fontWeight: '600', color: Theme.darkText, },
+    recentTrickScore: { fontSize: 12, color: Theme.darkText, },
+    recentTrickScoreBox: { backgroundColor: Theme.secondary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginRight: 10, },
+    recentTrickScoreValue: { fontSize: 14, fontWeight: 'bold', color: Theme.primary, },
 
 
     // --- NEW Comparison Styles ---
@@ -287,17 +267,17 @@ const styles = StyleSheet.create({
     comparisonValue: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: Colors.darkText,
+        color: Theme.darkText,
         marginBottom: 2,
     },
     comparisonLabel: {
         fontSize: 10,
-        color: Colors.textGrey,
+        color: Theme.darkText,
         textAlign: 'center',
     },
-    separatorVertical: {
+    borderVertical: {
         width: 1,
         height: '80%',
-        backgroundColor: Colors.separator,
+        backgroundColor: Theme.border,
     },
 });
