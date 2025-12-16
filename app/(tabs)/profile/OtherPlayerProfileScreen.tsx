@@ -167,7 +167,7 @@ export default function OtherPlayerProfileScreen() {
 
                     {/* Profile Header Block */}
                     <View style={styles.profileHeaderBlock}>
-                        <Image source={require('@/assets/images/avatar.webp')} style={styles.avatar} />
+                        <Image source={require('@/assets/images/avatar.png')} style={styles.avatar} />
                         <ThemedText style={styles.username}>{profileData.username}</ThemedText>
                         <ThemedText style={styles.rank}>ELO: {profileData.eloRating}</ThemedText>
                         <ThemedText style={styles.bio}>{profileData.bio || 'No bio available.'}</ThemedText>
@@ -204,7 +204,7 @@ export default function OtherPlayerProfileScreen() {
                     {profileData.recentGame && (
                         <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { alert('View their full match history!'); }}>
                             <View style={styles.recentTrickRow}>
-                                <Image source={require('@/assets/images/avatar.webp')} style={styles.recentTrickAvatar} />
+                                <Image source={require('@/assets/images/avatar.png')} style={styles.recentTrickAvatar} />
                                 <View style={styles.recentTrickDetails}>
                                     <ThemedText style={styles.recentTrickOpponent}>vs. {profileData.recentGame.opponentUsername}</ThemedText>
                                     <ThemedText style={styles.recentTrickScore}>Played: {new Date(profileData.recentGame.datePlayed).toLocaleDateString()}</ThemedText>

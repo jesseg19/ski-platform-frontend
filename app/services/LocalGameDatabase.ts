@@ -181,8 +181,6 @@ export class LocalGameDatabase {
         return rows;
     }
 
-    // --- Existing/Required Methods ---
-
     async saveGameState(state: LocalGameState): Promise<void> {
         const db = this.getDb();
         const isDirtyInt = state.isDirty ? 1 : 0;
@@ -244,19 +242,19 @@ export class LocalGameDatabase {
         // (though they are not strictly dependent on each other, it's safer).
 
         try {
-            // 1. Delete all round actions for this game
+            //  Delete all round actions for this game
             await db.runAsync('DELETE FROM round_actions WHERE gameId = ?', [gameId]);
             console.log(`Cleared round_actions for gameId ${gameId}`);
 
-            // 2. Delete all pending actions for this game
+            // Delete all pending actions for this game
             await db.runAsync('DELETE FROM pending_actions WHERE gameId = ?', [gameId]);
             console.log(`Cleared pending_actions for gameId ${gameId}`);
 
-            // 3. Delete the main game state record
+            // Delete the main game state record
             await db.runAsync('DELETE FROM game_state WHERE gameId = ?', [gameId]);
             console.log(`Cleared game_state for gameId ${gameId}`);
 
-            // 4. Optionally clear sync log (if you track sync logs per game)
+            // Optionally clear sync log
             await db.runAsync('DELETE FROM sync_log WHERE gameId = ?', [gameId]);
             console.log(`Cleared sync_log for gameId ${gameId}`);
 
@@ -266,6 +264,51 @@ export class LocalGameDatabase {
         }
     }
 
+    async updateUsernameInGameStates(oldUsername: string, newUsername: string): Promise<void> {
+        const db = this.getDb();
+        await db.runAsync(
+            `UPDATE game_state 
+         SET p1Username = CASE WHEN p1Username = ? THEN ? ELSE p1Username END,
+             p2Username = CASE WHEN p2Username = ? THEN ? ELSE p2Username END,
+             whosSet = CASE WHEN whosSet = ? THEN ? ELSE whosSet END
+         WHERE p1Username = ? OR p2Username = ? OR whosSet = ?`,
+            [
+                oldUsername, newUsername,
+                oldUsername, newUsername,
+                oldUsername, newUsername,
+
+                oldUsername,
+                oldUsername,
+                oldUsername
+            ]
+        );
+    }
+
+    async updateUsernameInActions(oldUsername: string, newUsername: string): Promise<void> {
+        const db = this.getDb();
+        await db.runAsync(
+            `UPDATE round_actions 
+         SET setterUsername = CASE WHEN setterUsername = ? THEN ? ELSE setterUsername END,
+             receiverUsername = CASE WHEN receiverUsername = ? THEN ? ELSE receiverUsername END,
+             letterAssignedTo = CASE WHEN letterAssignedTo = ? THEN ? ELSE letterAssignedTo END,
+             inputByUsername = CASE WHEN inputByUsername = ? THEN ? ELSE inputByUsername END
+         WHERE setterUsername = ? 
+            OR receiverUsername = ? 
+            OR letterAssignedTo = ? 
+            OR inputByUsername = ?`,
+            [
+                oldUsername, newUsername,
+                oldUsername, newUsername,
+                oldUsername, newUsername,
+                oldUsername, newUsername,
+
+                oldUsername,
+                oldUsername,
+                oldUsername,
+                oldUsername
+            ]
+        );
+    }
 }
 
 export const localGameDB = new LocalGameDatabase();

@@ -128,7 +128,7 @@ export default function ChoseGameModeScreen() {
                 <View style={styles.header}>
                     <View style={styles.logoContainer}>
                         <ImageBackground
-                            source={require('@/assets/images/logo.webp')}
+                            source={require('@/assets/images/logo.png')}
                             style={styles.mountainPlaceholder}
                             resizeMode="contain"
                         />
@@ -188,8 +188,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 20,
-        position: 'relative',
-        marginBottom: 20,
     },
     leaderboardButton: {
         position: 'absolute',
@@ -200,10 +198,14 @@ const styles = StyleSheet.create({
     },
     logoContainer: {
         alignItems: 'center',
+        borderRadius: 100,
+        overflow: 'hidden',
+        width: 110,
+        height: 110,
     },
     mountainPlaceholder: {
-        width: 80,
-        height: 80,
+        width: 110,
+        height: 110,
         borderRadius: 5,
         marginBottom: 5,
     },
@@ -214,7 +216,8 @@ const styles = StyleSheet.create({
     buttonContainer: {
         height: 220,
         borderRadius: 15,
-        padding: 55,
+        paddingHorizontal: 20,
+        paddingVertical: 55,
         alignItems: 'center',
         marginTop: 60,
         shadowColor: '#000',

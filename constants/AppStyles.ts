@@ -89,10 +89,9 @@ export const mainStyles = StyleSheet.create({
         flex: 1,
         width: '100%',
         height: '120%',
-        paddingTop: 50, // To account for safe areas and notches
     },
     scrollViewContent: {
-        paddingTop: 50,
+        paddingTop: 10,
         paddingHorizontal: 15,
         paddingBottom: 40,
     },
@@ -185,10 +184,9 @@ export const mainStyles = StyleSheet.create({
         gap: 15,
     },
     gameOverCard: {
-        backgroundColor: Theme.danger,
-        borderRadius: 15,
         padding: 15,
         marginBottom: 10,
+        backgroundColor: "#FFF",
         alignItems: 'center',
     },
     backButtonContainer: {

@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Image, ImageBackground, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Assuming these are your custom components
 import { useAuth } from '@/auth/AuthContext';
@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Theme } from '@/constants/theme';
 import React, { useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { gameSyncService } from '../../services/GameSyncService';
 
 
 
@@ -69,7 +70,11 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ title, children, actionText, 
 
 export default function ProfileScreen() {
   const [profileData, setProfileData] = React.useState<UserProfile | null>(null);
-  const { signOut } = useAuth();
+  const { signOut, updateToken, user, updateUsername } = useAuth();
+
+  const [isEditingUsername, setIsEditingUsername] = React.useState(false);
+  const [newUsername, setNewUsername] = React.useState('');
+
   async function getProfileData() {
     try {
       const response = await api.get('/api/profiles/me');
@@ -85,6 +90,53 @@ export default function ProfileScreen() {
     router.push('/(tabs)/profile/settings');
   };
 
+  const handleEditPress = () => {
+    if (isEditingUsername) {
+      handleSaveUsername();
+    } else {
+      setIsEditingUsername(true);
+    }
+  };
+
+  const handleSaveUsername = async () => {
+    if (!profileData || newUsername.trim() === '' || newUsername === profileData.username) {
+      setIsEditingUsername(false); // Exit editing if nothing changed or it's empty
+      return;
+    }
+
+    try {
+      const response = await api.put('/api/profiles/update', {
+        username: newUsername,
+      });
+      const { username: updatedUsername, token: newJwtToken } = response.data;
+      const oldUsername = profileData!.username;
+      // Update local state on success
+      setProfileData(prevData => ({
+        ...prevData!,
+        username: updatedUsername,
+      }));
+
+      updateToken(newJwtToken);
+      updateUsername(updatedUsername);
+
+      if (oldUsername !== updatedUsername) {
+        await gameSyncService.updateUsernameInLocalRecords(oldUsername, updatedUsername);
+      }
+
+      setIsEditingUsername(false);
+      router.replace('/(tabs)/game');
+
+      alert('Username updated successfully!');
+
+    } catch (error) {
+      console.error('Failed to update username:', error);
+      alert('Failed to update username. Please try again.');
+      setNewUsername(profileData.username);
+
+      setIsEditingUsername(false);
+    }
+  };
+
   const handleViewMatch = () => {
     alert('Navigating to Match Details...');
   };
@@ -94,6 +146,7 @@ export default function ProfileScreen() {
       const data = await getProfileData();
       if (data) {
         setProfileData(data);
+        setNewUsername(data.username);
       }
     };
 
@@ -127,6 +180,14 @@ export default function ProfileScreen() {
             {/* <TouchableOpacity onPress={handleSettingsPress} style={styles.iconButton}>
               <Feather name="settings" size={24} color={Theme.darkText} />
             </TouchableOpacity> */}
+            <TouchableOpacity onPress={handleEditPress} style={styles.iconButton}>
+              {/* Conditional icon: 'check' (save) when editing, 'edit' otherwise */}
+              <Feather
+                name={isEditingUsername ? "check" : "edit"}
+                size={24}
+                color={Theme.darkText}
+              />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/(tabs)/profile/friends')} style={styles.iconButton}>
               <Feather name="user-plus" size={24} color={Theme.darkText} />
             </TouchableOpacity>
@@ -140,10 +201,22 @@ export default function ProfileScreen() {
           <View style={styles.profileHeaderBlock}>
             {/* Avatar */}
             <Image
-              source={require('@/assets/images/avatar.webp')}
+              source={require('@/assets/images/avatar.png')}
               style={styles.avatar}
             />
-            <ThemedText style={styles.username}>{profileData?.username}</ThemedText>
+            {isEditingUsername ? (
+              <TextInput
+                style={[styles.username, styles.usernameInput]}
+                value={newUsername}
+                onChangeText={setNewUsername}
+                placeholder="Enter new username"
+                autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleSaveUsername}
+              />
+            ) : (
+              <ThemedText style={styles.username}>{profileData?.username}</ThemedText>
+            )}
             <ThemedText style={styles.rank}>ELO: {profileData?.eloRating}</ThemedText>
             <ThemedText style={styles.bio}>{profileData?.bio}</ThemedText>
 
@@ -172,7 +245,7 @@ export default function ProfileScreen() {
             <View style={styles.recentTrickRow}>
               {/* Player Avatar */}
               <Image
-                source={require('@/assets/images/avatar.webp')}
+                source={require('@/assets/images/avatar.png')}
                 style={styles.recentTrickAvatar}
               />
               <View style={styles.recentTrickDetails}>
@@ -275,6 +348,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: Theme.darkText,
+  },
+  usernameInput: {
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.primary,
+    paddingVertical: 2,
+    minWidth: 150,
+    textAlign: 'center',
   },
   rank: {
     fontSize: 16,

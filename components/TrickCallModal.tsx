@@ -16,21 +16,21 @@ import {
 } from 'react-native';
 import { CustomButton } from './CustomButton';
 
-// --- JUMP TRICK OPTIONS (UNTOUCHED) ---
+// --- JUMP TRICK OPTIONS  ---
 const JUMP_DEFAULT_TRICKS = ["Backflip", "Frontflip", "Zero Spin", "Underflip"];
-const JUMP_TAKE_OFF_VARIATIONS = ["Nose Butter", "Tail Butter", "Holding Grab", "Blender", "Carving", "Lazy boy", "Tokyo Drift"];
-const JUMP_LANDING_VARIATIONS = ["Holding Grab", "Knuckle Grab", "bounce"];
+const JUMP_TAKE_OFF_VARIATIONS = ["Nose Butter", "Tail Butter", "Take Off Holding Grab", "Blender", "Carving", "Lazy boy", "Tokyo Drift"];
+const JUMP_LANDING_VARIATIONS = ["Land Holding Grab"];
 const JUMP_STANCE_OPTIONS = ["Forward", "Switch"];
 const JUMP_DIRECTION_OPTIONS = ["Left", "Right"];
 const JUMP_NUMBER_OF_FLIPS_OPTIONS = ["Single", "Double"];
 const JUMP_AXIS_OPTIONS = ["Bio", "Rodeo", "Cork", "Misty", "On Axis"];
 const JUMP_DEGREE_OF_ROTATION_OPTIONS = ["180", "360", "540", "720", "900", "1080", "1260", "1440"];
-const JUMP_GRAB_OPTIONS = ["Mute", "Safety", "Blunt", "Nose", "Stale", "Japan", "Critical", "Octo"];
+const JUMP_GRAB_OPTIONS = ["Mute", "Safety", "Blunt", "Nose", "Stale", "Japan", "Critical", "Octo", "Screamin' Seamen", "Esco", "Seatbelt", "Dub Japan", "Truck",];
 
-// --- RAIL TRICK OPTIONS (UNTOUCHED) ---
+// --- RAIL TRICK OPTIONS ---
 const RAIL_DEFAULT_TRICKS = ["Kfed", "Ellen"];
-const RAIL_TAKE_OFF_VARIATIONS = JUMP_TAKE_OFF_VARIATIONS;
-const RAIL_LANDING_VARIATIONS = JUMP_LANDING_VARIATIONS;
+const RAIL_TAKE_OFF_VARIATIONS = ["Nose Butter", "Tail Butter", "Take Off Holding Grab", "Blender", "Tokyo Drift"];
+const RAIL_LANDING_VARIATIONS = ["Land Holding Grab"];
 const RAIL_SETUP_STANCE_OPTIONS = JUMP_STANCE_OPTIONS;
 const RAIL_SETUP_DIRECTION_OPTIONS = ["Left", "Right", "Left foot", "Right foot"];
 const RAIL_SETUP_TAKEOFF_FORWARD_OPTIONS = ["Regular", "Lip"];
@@ -47,7 +47,7 @@ interface TrickCallModalProps {
     onTrickCall: (trickString: string) => void;
 }
 
-// --- JUMP STATE (UNTOUCHED) ---
+// --- JUMP STATE  ---
 interface JumpTrickState {
     takeOffVariation: string | null;
     stance: string | null;
@@ -63,7 +63,7 @@ const initialJumpTrickState: JumpTrickState = {
     axis: null, degreeOfRotation: null, grab: null, landingVariation: null,
 };
 
-// --- RAIL STATE (UNTOUCHED) ---
+// --- RAIL STATE ---
 interface RailSwap {
     id: string;
     spin: string | null;
@@ -165,7 +165,7 @@ const TrickTypeSlider: React.FC<TrickTypeSliderProps> = ({ selectedType, onSelec
 
 export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClose, currentTrick, onTrickCall }) => {
 
-    // --- STATE & HANDLERS (UNTOUCHED FOR LOGIC) ---
+    // --- STATE & HANDLERS  ---
     const [trickType, setTrickType] = useState<'jump' | 'rail'>('jump');
     const [jumpTrick, setJumpTrick] = useState<JumpTrickState>(initialJumpTrickState);
     const [railTrick, setRailTrick] = useState<RailTrickState>(initialRailTrickState);
@@ -206,7 +206,7 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
         setDefaultTrick(null);
         setCustomTrick("");
         if (type === 'jump') {
-            setOpenSections(['trick', 'takeoff-var']); // Changed default open sections for Jump
+            setOpenSections(['trick']);
         } else {
             setOpenSections(['setup', 'trick']);
         }
@@ -351,19 +351,19 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
     // --- RENDER ---
     return (
         <Modal animationType="slide" transparent={true} visible={isVisible} onRequestClose={onClose}>
-            <View style={revisedModalStyles.centeredView}>
-                <ThemedView style={revisedModalStyles.modalView}>
+            <View style={modalStyles.centeredView}>
+                <ThemedView style={modalStyles.modalView}>
 
-                    <TouchableOpacity style={revisedModalStyles.closeButton} onPress={onClose}>
+                    <TouchableOpacity style={modalStyles.closeButton} onPress={onClose}>
                         <AntDesign name="close-circle" size={30} color={Theme.darkText} />
                     </TouchableOpacity>
 
-                    <ThemedText style={revisedModalStyles.title}>Call a Trick</ThemedText>
+                    <ThemedText style={modalStyles.title}>Call a Trick</ThemedText>
 
                     {/* --- TRICK TYPE SLIDER --- */}
                     <TrickTypeSlider selectedType={trickType} onSelect={handleTrickTypeChange} />
 
-                    <ScrollView style={revisedModalStyles.listContainer} contentContainerStyle={revisedModalStyles.listContentContainer}>
+                    <ScrollView style={modalStyles.listContainer} contentContainerStyle={modalStyles.listContentContainer}>
 
                         {/* --- DEFAULT TRICKS --- */}
                         <CollapsibleSection
@@ -392,8 +392,10 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                                     isOpen={openSections.includes('takeoff')}
                                     onToggle={() => handleToggleSection('takeoff')}
                                 >
-                                    <ButtonSelector label="Stance" options={JUMP_STANCE_OPTIONS} selectedValue={jumpTrick.stance} onSelect={(v) => updateJumpTrick('stance', v)} />
-                                    <ButtonSelector label="Direction" options={JUMP_DIRECTION_OPTIONS} selectedValue={jumpTrick.direction} onSelect={(v) => updateJumpTrick('direction', v)} />
+                                    <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }} >
+                                        <ButtonSelector label="Stance" options={JUMP_STANCE_OPTIONS} selectedValue={jumpTrick.stance} onSelect={(v) => updateJumpTrick('stance', v)} />
+                                        <ButtonSelector label="Direction" options={JUMP_DIRECTION_OPTIONS} selectedValue={jumpTrick.direction} onSelect={(v) => updateJumpTrick('direction', v)} />
+                                    </View>
                                 </CollapsibleSection>
 
                                 <CollapsibleSection
@@ -408,27 +410,21 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                                 </CollapsibleSection>
 
                                 <CollapsibleSection
-                                    title="Take-off Variation"
+                                    title="Variations"
                                     isOpen={openSections.includes('takeoff-var')}
                                     onToggle={() => handleToggleSection('takeoff-var')}
                                 >
                                     <ButtonSelector
-                                        label=""
+                                        label="Take-off Variation"
                                         options={JUMP_TAKE_OFF_VARIATIONS}
                                         selectedValue={jumpTrick.takeOffVariation}
                                         onSelect={(v) => updateJumpTrick('takeOffVariation', v)}
                                     />
-                                </CollapsibleSection>
-                                <CollapsibleSection
-                                    title="Landing Variation"
-                                    isOpen={openSections.includes('landing-var')}
-                                    onToggle={() => handleToggleSection('landing-var')}
-                                >
                                     <ButtonSelector
-                                        label=""
+                                        label="Landing Variation"
                                         options={JUMP_LANDING_VARIATIONS}
                                         selectedValue={jumpTrick.landingVariation}
-                                        onSelect={(v) => updateJumpTrick('landingVariation', v)}
+                                        onSelect={(v) => updateRailTrick('landingVariation', v)}
                                     />
                                 </CollapsibleSection>
                             </>
@@ -440,18 +436,21 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                                     isOpen={openSections.includes('setup')}
                                     onToggle={() => handleToggleSection('setup')}
                                 >
-                                    <ButtonSelector label="Stance" options={RAIL_SETUP_STANCE_OPTIONS} selectedValue={railTrick.stance} onSelect={(v) => updateRailTrick('stance', v)} />
-                                    <ButtonSelector label="Approach" options={RAIL_SETUP_DIRECTION_OPTIONS} selectedValue={railTrick.direction} onSelect={(v) => updateRailTrick('direction', v)} />
-                                    <ButtonSelector
-                                        label="Takeoff"
-                                        options={railTrick.stance === 'Switch' ? RAIL_SETUP_TAKEOFF_SWITCH_OPTIONS : RAIL_SETUP_TAKEOFF_FORWARD_OPTIONS}
-                                        selectedValue={railTrick.takeoff}
-                                        onSelect={(v) => updateRailTrick('takeoff', v)}
-                                    />
+                                    <View style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }} >
+                                        <ButtonSelector label="Stance" options={RAIL_SETUP_STANCE_OPTIONS} selectedValue={railTrick.stance} onSelect={(v) => updateRailTrick('stance', v)} />
+                                        <ButtonSelector
+                                            label="Takeoff"
+                                            options={railTrick.stance === 'Switch' ? RAIL_SETUP_TAKEOFF_SWITCH_OPTIONS : RAIL_SETUP_TAKEOFF_FORWARD_OPTIONS}
+                                            selectedValue={railTrick.takeoff}
+                                            onSelect={(v) => updateRailTrick('takeoff', v)}
+                                        />
+                                    </View>
+                                    <ButtonSelector label="Direction" options={RAIL_SETUP_DIRECTION_OPTIONS} selectedValue={railTrick.direction} onSelect={(v) => updateRailTrick('direction', v)} />
+
                                 </CollapsibleSection>
 
                                 <CollapsibleSection
-                                    title="Trick Elements"
+                                    title="Trick Details"
                                     isOpen={openSections.includes('trick')}
                                     onToggle={() => handleToggleSection('trick')}
                                 >
@@ -527,12 +526,12 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                     </ScrollView>
 
                     {/* --- PREVIEW AND BUTTONS --- */}
-                    <View style={revisedModalStyles.summaryContainer}>
-                        <ThemedText style={revisedModalStyles.summaryText}>Trick Preview:</ThemedText>
-                        <ThemedText style={revisedModalStyles.currentTrick}>{getPreviewTrick()}</ThemedText>
+                    <View style={modalStyles.summaryContainer}>
+                        <ThemedText style={modalStyles.summaryText}>Trick Preview:</ThemedText>
+                        <ThemedText style={modalStyles.currentTrick}>{getPreviewTrick()}</ThemedText>
                     </View>
 
-                    <View style={revisedModalStyles.buttonContainer}>
+                    <View style={modalStyles.buttonContainer}>
                         <CustomButton title="Cancel" onPress={onClose} isPrimary={false} style={{ width: '30%', backgroundColor: Theme.darkText, borderColor: Theme.darkText, borderWidth: 1 }} />
                         <CustomButton title="SET TRICK" onPress={handleCallTrick} isPrimary={true} style={{ width: '65%' }} />
                     </View>
@@ -544,22 +543,8 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
 };
 
 
-// --- REVISED STYLES ---
 
-// Defined a couple of custom colors for better contrast/professionalism
-// const CustomColors = {
-//     // Assuming 'Colors' imports base theme colors
-//     white: '#ffffff',
-//     lightGrey: '#EAEAEA',
-//     mediumGrey: '#CCCCCC', // Added for borders/separators
-//     darkBlue: '#005A9C', // Primary/Accent Color
-//     lightBlue: '#E6F0F8', // Subtle background for active/summary
-//     textGrey: '#666666',
-//     darkText: '#333333',
-//     overlay: 'rgba(0, 0, 0, 0.4)',
-// };
-
-const revisedModalStyles = StyleSheet.create({
+const modalStyles = StyleSheet.create({
     centeredView: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: Theme.overlay }, // Modal slides up
     modalView: {
         margin: 0,
@@ -583,7 +568,7 @@ const revisedModalStyles = StyleSheet.create({
         paddingHorizontal: 20,
         marginVertical: 10,
         backgroundColor: Theme.secondary,
-        borderRadius: 12,
+        borderRadius: 5,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: Theme.border,
@@ -632,7 +617,7 @@ const revisedStyles = StyleSheet.create({
     sliderButtonTextActive: {
         color: Theme.cardBackground,
     },
-    // --- COLLAPSIBLE STYLES (Cleaner borders, less background) ---
+    // --- COLLAPSIBLE STYLES  ---
     collapsibleContainer: {
         width: '100%',
         marginBottom: 10,
@@ -661,17 +646,17 @@ const revisedStyles = StyleSheet.create({
         borderColor: Theme.border
     },
     builderSectionTitle: { fontSize: 15, fontWeight: '600', color: Theme.primary, marginTop: 10, marginBottom: 5 },
-    // --- BUTTON SELECTOR STYLES (More visual weight for selection) ---
+    // --- BUTTON SELECTOR STYLES  ---
     buttonSelectorContainer: { marginBottom: 15, },
     buttonSelectorLabel: { fontSize: 14, fontWeight: '600', color: Theme.darkText, marginBottom: 8, },
     buttonRow: { flexDirection: 'row', flexWrap: 'wrap', },
     optionButton: {
-        paddingVertical: 10, // Increased vertical padding
+        paddingVertical: 10,
         paddingHorizontal: 15,
         backgroundColor: Theme.cardBackground,
-        borderWidth: 1.5, // Thicker border
+        borderWidth: 1.5,
         borderColor: Theme.mediumBackground,
-        borderRadius: 25, // More rounded pill shape
+        borderRadius: 10,
         margin: 4,
     },
     optionButtonSelected: {
@@ -686,13 +671,13 @@ const revisedStyles = StyleSheet.create({
         width: '100%', height: 50,
         borderColor: Theme.mediumBackground,
         borderWidth: 1,
-        borderRadius: 10, // More rounded corners
+        borderRadius: 10,
         paddingHorizontal: 15,
         fontSize: 16,
         backgroundColor: Theme.cardBackground,
         color: Theme.darkText
     },
-    // --- SWAP STYLES (Cleaner, integrated removal) ---
+    // --- SWAP STYLES  ---
     swapContainer: {
         position: 'relative',
         borderWidth: 1,

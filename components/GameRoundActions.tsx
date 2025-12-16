@@ -87,14 +87,14 @@ export const GameRoundActions: React.FC<GameRoundActionsProps> = ({
         return (
             <>
                 <CustomButton
-                    title={`✅ Land ${playerAction === 'land' ? ' (Voted)' : ''}`}
+                    title={`✅ Land ${playerAction === 'land' ? ' (Saved)' : ''}`}
                     onPress={() => handlePlayerAction(player, 'land')}
                     isPrimary={true}
                     disabled={disabled || playerAction === 'fail'}
                     style={{ flex: 1, marginRight: 8 }}
                 />
                 <CustomButton
-                    title={`❌ Fail ${playerAction === 'fail' ? ' (Voted)' : ''}`}
+                    title={`❌ Fail ${playerAction === 'fail' ? ' (Saved)' : ''}`}
                     onPress={() => handlePlayerAction(player, 'fail')}
                     isPrimary={false}
                     disabled={disabled || playerAction === 'land'}

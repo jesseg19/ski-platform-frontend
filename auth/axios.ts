@@ -2,8 +2,8 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // const API_BASE_URL = 'http://192.168.139.1:5000';
-// const API_BASE_URL = "http://Laps-api-env.eba-7fvwzsz2.us-east-2.elasticbeanstalk.com";
 const API_BASE_URL = "https://laps.api.jessegross.ca";
+const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/signup'];
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -58,6 +58,11 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         const status = error.response?.status;
+        const url = originalRequest.url || '';
+
+        if (AUTH_ENDPOINTS.some(endpoint => url.includes(endpoint))) {
+            return Promise.reject(error);
+        }
 
         // Condition for refreshing: 403 and not a retry
         if (status === 403 && !originalRequest._retry) {
@@ -96,12 +101,18 @@ api.interceptors.response.use(
             } catch (refreshError) {
                 processQueue(refreshError);
                 if (signOutCallback) signOutCallback();
-                return Promise.reject(refreshError);
+                return Promise.reject(new Error("Session expired. Please log in again."));
 
             } finally {
                 isRefreshing = false;
             }
         }
+
+        if (status === 401 && signOutCallback) {
+            signOutCallback();
+            return Promise.reject(new Error("Authentication required. Signed out."));
+        }
+
         return Promise.reject(error);
     }
 );

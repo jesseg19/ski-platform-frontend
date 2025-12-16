@@ -297,6 +297,8 @@ export default function GameScreen1v1() {
           setP2User(player2);
         }
 
+        setTricks(serverState.tricks);
+        console.log(tricks);
         currentRoundNumber.current = serverState.tricks.length + 1;
       }
     } catch (error) {
@@ -900,7 +902,7 @@ export default function GameScreen1v1() {
               disabled={tricks.length === 0 || gameStatus === 'gameOver'}
             />
             {/* button to show all previously done tricks in this game */}
-            <CustomButton title="View Trick History" onPress={() => {
+            <CustomButton title="View Trick History" disabled={gameStatus === 'pending'} onPress={() => {
               getAllGameTricks();
             }} isPrimary={false} />
 
@@ -935,7 +937,7 @@ export default function GameScreen1v1() {
               <ThemedText style={mainStyles.modalMessage}>Do you want to pause the game or quit?</ThemedText>
               <View style={mainStyles.modalButtons}>
                 <CustomButton title="Pause" onPress={handlePauseGame} disabled={gameStatus !== 'playing'} />
-                <CustomButton title="Quit" onPress={handleQuitGame} disabled={gameStatus !== 'playing'} />
+                <CustomButton title="Quit" onPress={handleQuitGame} disabled={gameStatus === 'pending'} />
                 <CustomButton title="Back to game" onPress={() => setPauseOrQuitModalVisible(false)} isPrimary={false} />
               </View>
             </View>

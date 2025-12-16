@@ -277,6 +277,7 @@ const styles = StyleSheet.create({
         padding: 10,
     },
     friendItem: {
+        color: Theme.darkText,
         paddingVertical: 12,
         paddingHorizontal: 8,
         borderBottomWidth: 1,
@@ -293,6 +294,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
     },
     requesterText: {
+        color: Theme.darkText,
         fontSize: 16,
         fontWeight: '500',
         flex: 1,

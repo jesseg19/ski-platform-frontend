@@ -185,6 +185,12 @@ export class GameSyncService {
             throw error;
         }
     }
+    async updateUsernameInLocalRecords(oldUsername: string, newUsername: string): Promise<void> {
+        console.log(`Updating local records: ${oldUsername} -> ${newUsername}`);
+
+        await this.db.updateUsernameInGameStates(oldUsername, newUsername);
+        await this.db.updateUsernameInActions(oldUsername, newUsername);
+    }
 
     private async updateLocalFromServer(gameId: number): Promise<void> {
         try {

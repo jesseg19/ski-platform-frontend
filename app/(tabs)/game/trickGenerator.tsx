@@ -70,11 +70,11 @@ const ModeSwitch: React.FC<ModeSwitchProps> = ({ selectedMode, onSelectMode }) =
 
 // --- Difficulty Level Mapping  ---
 const DIFFICULTY_LEVELS = [
-  { displayName: 'I', name: 'Beginner', maxDifficulty: 20, minDifficulty: 0, value: 1 },
+  { displayName: 'I', name: 'Beginner', maxDifficulty: 25, minDifficulty: 10, value: 1 },
   // { displayName: 'II', name: 'Intermediate', maxDifficulty: 50, minDifficulty: 21, value: 2 },
   { displayName: 'II', name: 'Advanced', maxDifficulty: 65, minDifficulty: 21, value: 3 },
-  { displayName: 'III', name: 'Expert', maxDifficulty: 100, minDifficulty: 45, value: 4 },
-  { displayName: 'IV', name: 'Insane', maxDifficulty: 250, minDifficulty: 101, value: 5 },
+  { displayName: 'III', name: 'Expert', maxDifficulty: 100, minDifficulty: 40, value: 4 },
+  { displayName: 'IV', name: 'Insane', maxDifficulty: 250, minDifficulty: 60, value: 5 },
 ];
 
 // --- Base Trick Component Interface ---
@@ -90,38 +90,43 @@ const stanceOptions: TrickComponent[] = [
 ];
 const spinDirectionOptions: TrickComponent[] = [
   { name: "Natural", difficulty: 1 },
-  { name: "Unnatural", difficulty: 5 },
+  { name: "Unnatural", difficulty: 10 },
 ];
 const numberOfFlipsOptions: TrickComponent[] = [
   { name: "", difficulty: 1 },
-  { name: "Double", difficulty: 50 },
+  { name: "Double", difficulty: 60 },
 ];
 const axisOptions: TrickComponent[] = [
-  { name: "Bio", difficulty: 15 },
-  { name: "Rodeo", difficulty: 12 },
-  { name: "Cork", difficulty: 5 },
-  { name: "Misty", difficulty: 7 },
+  { name: "Bio", difficulty: 22 },
+  { name: "Rodeo", difficulty: 17 },
+  { name: "Cork", difficulty: 15 },
+  { name: "Misty", difficulty: 15 },
   { name: "On Axis", difficulty: 1 },
 ];
 const degreeOfRotationOptions: TrickComponent[] = [
-  { name: "180", difficulty: 1 },
+  { name: "180", difficulty: 3 },
   { name: "360", difficulty: 2 },
   { name: "540", difficulty: 4 },
   { name: "720", difficulty: 7 },
   { name: "900", difficulty: 12 },
   { name: "1080", difficulty: 20 },
   { name: "1260", difficulty: 55 },
-  // { name: "1440", difficulty: 70 },
 ];
 const grabOptions: TrickComponent[] = [
-  { name: "Mute", difficulty: 1 },
+  { name: "Mute", difficulty: 5 },
   { name: "Safety", difficulty: 1 },
-  { name: "Blunt", difficulty: 3 },
-  { name: "Nose", difficulty: 4 },
-  { name: "Stale", difficulty: 5 },
-  { name: "Japan", difficulty: 6 },
-  { name: "Critical", difficulty: 7 },
-  { name: "Octo", difficulty: 8 },
+  { name: "Blunt", difficulty: 6 },
+  { name: "Nose", difficulty: 8 },
+  { name: "Stale", difficulty: 9 },
+  { name: "Japan", difficulty: 5 },
+  { name: "Critical", difficulty: 9 },
+  { name: "Octo", difficulty: 12 },
+  { name: "Screamin' Seamen", difficulty: 18 },
+  { name: "Esco", difficulty: 12 },
+  { name: "Seatbelt", difficulty: 12 },
+  { name: "Dub Japan", difficulty: 10 },
+  { name: "Truck driver", difficulty: 12 },
+
 ];
 
 interface Trick {
@@ -139,8 +144,12 @@ function isValidTrick(trick: Trick, selectedDifficulty: number): boolean {
   if ((trick.axis === 'Bio' || trick.axis === 'Misty') && parseInt(trick.degreeOfRotation) < 900 && trick.numberOfFlips === "Double") {
     return false;
   }
-  // cork/rodeo can't be double under 540
-  if ((trick.axis === 'Cork' || trick.axis === 'Rodeo') && parseInt(trick.degreeOfRotation) < 540 && trick.numberOfFlips === "Double") {
+  // switch bio/misty can't be double under 1080
+  if ((trick.axis === 'Bio' || trick.axis === 'Misty') && parseInt(trick.degreeOfRotation) < 1080 && trick.stance === "Switch" && trick.numberOfFlips === "Double") {
+    return false;
+  }
+  // cork/rodeo can't be double under 720
+  if ((trick.axis === 'Cork' || trick.axis === 'Rodeo') && parseInt(trick.degreeOfRotation) <= 540 && trick.numberOfFlips === "Double") {
     return false;
   }
   // switch cork/rodeo can't be double under 900
@@ -148,11 +157,11 @@ function isValidTrick(trick: Trick, selectedDifficulty: number): boolean {
     return false;
   }
   //can't flip on axis
-  if (trick.numberOfFlips === "Double" && trick.axis === "On Axis") {
+  if (trick.numberOfFlips === "Double" && trick.axis === "") {
     return false;
   }
   // nothing under 360 for anything but cork or on axis
-  if (trick.axis !== "On Axis" && trick.axis !== "Cork" && parseInt(trick.degreeOfRotation) <= 360) {
+  if (trick.axis !== "" && trick.axis !== "Cork" && parseInt(trick.degreeOfRotation) <= 360) {
     return false;
   }
   if (trick.axis === "Cork" && (parseInt(trick.degreeOfRotation) <= 180 || trick.stance === "Switch" && parseInt(trick.degreeOfRotation) <= 360)) {
@@ -160,6 +169,12 @@ function isValidTrick(trick: Trick, selectedDifficulty: number): boolean {
   }
   // sw misty/bio can't be 540 or under
   if ((trick.axis === "Misty" || trick.axis === "Bio") && trick.stance === "Switch" && parseInt(trick.degreeOfRotation) <= 720) {
+    return false;
+  }
+  if (trick.grab === "Screamin' Seamen" && parseInt(trick.degreeOfRotation) >= 900) {
+    return false;
+  }
+  if (trick.degreeOfRotation === "1260" && trick.numberOfFlips !== "Double") {
     return false;
   }
 
@@ -190,49 +205,155 @@ function isValidTrick(trick: Trick, selectedDifficulty: number): boolean {
 
 
 function generateTrick(maxDifficulty: number, minDifficulty: number, selectedDifficulty: number): Trick {
-  // Difficulty-Level Pre-Filtering
-  const availableAxis = axisOptions.filter(axes => {
-    // Level 1 restriction (only On Axis)
+  // Level-Specific Pre-Filtering & Probability Weighting
+
+  // Dynamic Array for available components based on level
+  let availableAxis = axisOptions;
+  let availableRotation = degreeOfRotationOptions;
+  let availableFlips = numberOfFlipsOptions;
+  let availableSpinDirection = spinDirectionOptions;
+  let availableGrabs = grabOptions;
+
+  if (selectedDifficulty === 1) {
+
+    //  Level 1 must be "On Axis" and simple Stance/Spin Direction
+    availableAxis = axisOptions.filter(axes => axes.name === "On Axis");
+    availableSpinDirection = spinDirectionOptions.filter(spin => spin.name === "Natural");
+    availableFlips = numberOfFlipsOptions.filter(flips => flips.name === ""); // No doubles
+    availableGrabs = grabOptions.filter(grab => grab.name !== "Screamin' Seamen"); // No Screamin' Seamen
+
+    // Weight the Rotation Pool to favor 360/540
+    // Keep the limit below 720 (as you had before)
+    let baseL1Rotation = degreeOfRotationOptions.filter(deg => parseInt(deg.name) < 720);
+
+    // Add 360 and 540 multiple times to bias the random selection
+    let weightedL1Rotation = [
+      ...baseL1Rotation.filter(d => d.name === '360'),
+      ...baseL1Rotation.filter(d => d.name === '360'), // Heavy Weight
+      ...baseL1Rotation.filter(d => d.name === '540'), // Heavy Weight
+      ...baseL1Rotation.filter(d => d.name === '180'), // Low Weight
+    ];
+
+    availableRotation = weightedL1Rotation;
+  }
+
+  // --- Level 2 : More Natural Flips, Common Axes ---
+  if (selectedDifficulty === 2) {
+    // Make Unnatural less likely to be chosen 
+    availableSpinDirection = [
+      { name: "Natural", difficulty: 1 },
+      { name: "Natural", difficulty: 1 },
+      { name: "Natural", difficulty: 1 },
+      { name: "Natural", difficulty: 1 },
+      { name: "Unnatural", difficulty: 10 },
+    ];
+    // Reduce chance of Bio
+    availableAxis = axisOptions.filter(a => a.name !== 'Bio').concat({ name: "Bio", difficulty: 22 });
+
+    // Level 2 Rotation: 540-900 (mostly 540/720)
+    availableRotation = degreeOfRotationOptions.filter(deg => parseInt(deg.name) >= 540 && parseInt(deg.name) <= 900);
+
+    // Switch Cork/Rodeo are more common than Switch Misty/Bio
+    // We handle this via dynamic difficulty in the loop below.
+  }
+
+  // --- Level 3 (Expert): Even Mix, Cork with Hard Grabs, 720/900 Mix ---
+  if (selectedDifficulty === 3) {
+    // Equal chance for Natural/Unnatural (default 1/1 mix is fine, but we'll use weighting for control)
+    availableSpinDirection = [
+      { name: "Natural", difficulty: 1 },
+      { name: "Unnatural", difficulty: 10 },
+    ];
+    // Ensure 720 and 900 are mixed well (bias towards 720 slightly to reduce 900 spam)
+    availableRotation = degreeOfRotationOptions.filter(deg => parseInt(deg.name) >= 720 && parseInt(deg.name) <= 1080);
+    // Add extra 720 options to the pool
+    availableRotation.push(
+      ...degreeOfRotationOptions.filter(d => d.name === '720'),
+      ...degreeOfRotationOptions.filter(d => d.name === '900')
+    );
+  }
+
+  // --- Level 4 (Insane): More 1080s, Occasional Doubles, 900 with Hard Grabs ---
+  if (selectedDifficulty === 4) {
+    // Increase Double chance significantly for this level (but not 100%)
+    availableFlips = [
+      { name: "", difficulty: 1 }, // Single Flip (75%)
+      { name: "", difficulty: 1 },
+      { name: "", difficulty: 1 },
+      { name: "Double", difficulty: 60 }, // Double Flip (25%)
+    ];
+    // Bias for 1080, still allow 900 with hard grabs, reduce 1260 chance
+    availableRotation = degreeOfRotationOptions.filter(deg => parseInt(deg.name) >= 900);
+    // Add extra 900/1080 options to the pool for weighted selection
+    availableRotation.push(
+      ...degreeOfRotationOptions.filter(d => d.name === '900'),
+      ...degreeOfRotationOptions.filter(d => d.name === '1080')
+    );
+  }
+
+  // General Filtering (copied from your original to ensure basic logic is maintained)
+  availableAxis = availableAxis.filter(axes => {
     if (selectedDifficulty === 1 && axes.name !== "On Axis") return false;
-    // Low-level Bio/Misty restriction
     if (selectedDifficulty < 3 && (axes.name === "Bio" || axes.name === "Misty")) return false;
     return true;
   });
 
-  const availableRotation = degreeOfRotationOptions.filter(deg => {
-    // Level 1: < 720
+  availableRotation = availableRotation.filter(deg => {
     if (selectedDifficulty === 1 && parseInt(deg.name) >= 720) return false;
-    // Level 1-3: < 900
-    if (selectedDifficulty < 4 && parseInt(deg.name) >= 900) return false;
-    if (selectedDifficulty < 5 && parseInt(deg.name) >= 1080) return false;
-    if (selectedDifficulty > 3 && parseInt(deg.name) <= 720) return false;
+    if (selectedDifficulty < 4 && parseInt(deg.name) >= 1080) return false; // Max 900/1080 for Expert/Insane
+    if (selectedDifficulty < 5 && parseInt(deg.name) >= 1260) return false;
     return true;
   });
 
-  const availableFlips = numberOfFlipsOptions.filter(flips => {
-    // Level 1-4: No Double flips
-    if (selectedDifficulty < 5 && flips.name === "Double") return false;
+  availableFlips = availableFlips.filter(flips => {
+    if (selectedDifficulty < 5 && flips.name === "Double" && selectedDifficulty < 4) return false; // Level 1-3 No Doubles
     return true;
   });
 
-  // Limited Iteration with Pre-Filtering
-  for (let i = 0; i < 5; i++) {
+
+  for (let i = 0; i < 50; i++) {
+
+    // Select components based on the filtered/weighted pools
     const stance = stanceOptions[Math.floor(Math.random() * stanceOptions.length)];
-    const spinDirection = spinDirectionOptions[Math.floor(Math.random() * spinDirectionOptions.length)];
+    const spinDirection = availableSpinDirection[Math.floor(Math.random() * availableSpinDirection.length)];
     const numberOfFlips = availableFlips[Math.floor(Math.random() * availableFlips.length)];
     const spinAmount = availableRotation[Math.floor(Math.random() * availableRotation.length)];
     const axes = availableAxis[Math.floor(Math.random() * availableAxis.length)];
-    const grab = grabOptions[Math.floor(Math.random() * grabOptions.length)];
+    const grab = availableGrabs[Math.floor(Math.random() * availableGrabs.length)];
 
-    // Calculate total difficulty 
+    // Calculate initial total difficulty
+    let totalDifficulty = stance.difficulty + numberOfFlips.difficulty + spinAmount.difficulty + axes.difficulty + grab.difficulty;
+
+    // Start with the base spin direction difficulty
     let spinDirDiff = spinDirection.difficulty;
+
+    // --- Dynamic Difficulty Logic ---
+
     if (spinDirection.name === "Unnatural" && axes.name !== "On Axis") {
-      spinDirDiff += 20;
+      spinDirDiff += 15;
     }
 
-    let totalDifficulty = stance.difficulty + spinDirDiff + numberOfFlips.difficulty + spinAmount.difficulty + axes.difficulty + grab.difficulty;
+    //  Level 2 (Advanced) - Switch Cork/Rodeo is easier than Switch Misty/Bio
+    // We make Switch Misty/Bio much harder than Switch Cork/Rodeo
+    if (selectedDifficulty === 2 && stance.name === "Switch" && spinAmount.name === '720') {
+      if (axes.name === 'Misty' || axes.name === 'Bio') {
+        totalDifficulty += 30; // Make them very rare by adding a huge penalty
+      }
+    }
 
-    // Check difficulty range 
+    //  Level 3/4 (Expert/Insane) - Smaller Spin + Hard Grab Bonus
+    // This allows Cork 3/5 with hard grabs to compete with 900s
+    if (selectedDifficulty >= 3 && (spinAmount.name === '540' || spinAmount.name === '720')) {
+      if (grab.difficulty >= 10) { // e.g., Octo, Screamin' Seamen, Esco, etc.
+        totalDifficulty += 15;
+      }
+    }
+
+    // Add the modified spin direction difficulty
+    totalDifficulty += spinDirDiff;
+
+
+    // Check difficulty range against the *adjusted* score
     if (totalDifficulty > maxDifficulty || totalDifficulty < minDifficulty) {
       continue;
     }
@@ -246,15 +367,14 @@ function generateTrick(maxDifficulty: number, minDifficulty: number, selectedDif
       axis: axes.name !== "On Axis" ? axes.name : "",
     };
 
-    //  Only run the remaining, combinatorial isValidTrick rules
+    // Only run the remaining, combinatorial isValidTrick rules
     if (isValidTrick(selectedTrick, selectedDifficulty)) {
       return selectedTrick;
     }
   }
 
-  // Fallback: If 5 attempts failed, try a very simple trick or throw an error
-  // This should rarely be hit with proper pre-filtering.
-  return { stance: 'Forward', spinDirection: 'Natural', numberOfFlips: '', grab: 'Mute', degreeOfRotation: '', axis: 'Backflip' };
+  // Fallback
+  return { stance: 'Forward', spinDirection: 'Natural', numberOfFlips: '', grab: 'Mute', degreeOfRotation: '360', axis: '' };
 }
 
 // --- END JUMP TRICK LOGIC ---
@@ -272,15 +392,10 @@ const railDirection: TrickComponent[] = [
   { name: 'Natural', difficulty: 1 },
   { name: 'Unnatural', difficulty: 30 },
 ];
-// const railFoot: TrickComponent[] = [
-//   { name: 'Left Foot', difficulty: 1 }, // For no-spin-on
-//   { name: 'Right Foot', difficulty: 1 },
-// ];
 const railTakeoff: TrickComponent[] = [
-  { name: 'Regular', difficulty: 1 }, // (Implied, often omitted)
+  { name: 'Regular', difficulty: 1 },
   { name: 'Lip', difficulty: 5 },
-  // { name: 'Straddle', difficulty: 8 },
-  { name: 'Tails', difficulty: 5 }, // Only for switch
+  { name: 'Tails', difficulty: 8 },
 ];
 const railSpinIn: TrickComponent[] = [
   { name: '', difficulty: 1 }, // e.g., 50-50 or slide
@@ -296,7 +411,7 @@ const railSwap: TrickComponent[] = [
   { name: 'Back 360 Swap', difficulty: 40 },
 ];
 const railSpinOut: TrickComponent[] = [
-  { name: 'Forward', difficulty: 1 }, // (Implied, often omitted)
+  { name: 'Forward', difficulty: 1 },
   { name: 'To Switch', difficulty: 3 },
   // { name: 'Pretzel 180', difficulty: 8 },
   { name: 'Back 270 Out', difficulty: 12 },
@@ -351,8 +466,32 @@ function isValidRailTrick(trick: GeneratedRailTrick, selectedDifficulty: number)
   if (trick.swaps.length > 3) {
     return false;
   }
+  // Rule: Level 4/Insane - Limit complexity of 630 on
+  if (trick.spinIn.name.includes('630')) {
+    // If it's a 630 in, limit total complexity significantly
+    if (trick.swaps.length > 1 || trick.spinOut.name.includes('270') || trick.spinOut.name.includes('450')) {
+      return false; // Block 630 on + multiple swaps OR complex spin outs
+    }
+  }
+
+  // Rule: Level 4/Insane - Prevent back-to-back 360 swaps
+  if (selectedDifficulty >= 4) {
+    let threeSixtySwapCount = 0;
+    for (const swap of trick.swaps) {
+      if (swap.name.includes('360')) {
+        threeSixtySwapCount++;
+      } else {
+        // If there's a non-360 swap in between, we reset the count.
+        threeSixtySwapCount = 0;
+      }
+      if (threeSixtySwapCount >= 2) {
+        return false;
+      }
+    }
+  }
 
   return true;
+
 }
 
 /**
@@ -525,36 +664,65 @@ function generateRailTrick(maxDifficulty: number, minDifficulty: number, selecte
  */
 function formatRailTrick(trick: GeneratedRailTrick): string {
   const parts: string[] = [];
+
+  // Stance 
   if (trick.stance.name === 'Switch') {
     parts.push('Switch');
   }
-  if (trick.spinIn.name === 'Natural') {
-    parts.push(trick.direction.name);
-  } else {
-    // parts.push(trick.foot.name);
+
+  // --- Rail Direction/Spin In Logic ---
+  const hasSpinIn = trick.spinIn.name !== '';
+
+  // Add Direction (ONLY if Unnatural)
+  if (trick.direction.name === 'Unnatural') {
+    parts.push('Unnatural');
   }
+
+  //  Takeoff/Slide Type
   if (trick.takeoff.name !== 'Regular') {
-    if (trick.stance.name === 'Switch' && trick.takeoff.name === 'Tails') {
-      parts.push('Tails');
-    } else if (trick.stance.name === 'Forward' && trick.takeoff.name !== 'Tails') {
+    if (!hasSpinIn) {
+      // Example: "Switch Lip Slide" or "Tails Slide"
+      parts.push(trick.takeoff.name);
+    } else {
+      // Example: "Lip" for "Lip 270 On"
       parts.push(trick.takeoff.name);
     }
   }
-  if (trick.spinIn.name !== '' || trick.takeoff.name !== 'Regular') {
+
+
+  //  Spin In
+  if (hasSpinIn) {
+    // We push the full spin name, e.g., "270 On"
     parts.push(trick.spinIn.name + ' On');
   }
+
+  //  Default Slide/Stance if no spin-in
+  if (!hasSpinIn) {
+    if (trick.takeoff.name !== 'Regular') {
+      parts.push('Slide');
+    }
+  }
+
+
+  // Swaps
   trick.swaps.forEach(swap => {
     parts.push(swap.name);
   });
-  if (trick.spinOut.name === 'Forward' && trick.spinIn.name !== '180') {
-    // Omit "Forward"
-  } else if (trick.spinOut.name === 'Switch' && trick.spinIn.name === '180') {
-    // Omit "Switch"
-  } else {
+
+  //  Spin Out
+  if (trick.spinOut.name !== 'Forward') {
+    // Include complex spins and "To Switch"
     parts.push(trick.spinOut.name);
   }
-  const trickString = parts.join(' ').replace(' On Back', ' Back').replace(' On Front', ' Front');
-  return trickString.trim();
+
+  // Final clean up
+  let trickString = parts.join(' ').replace('  ', ' ').trim();
+
+  // Specific cleanup for 'Tailslide' and 'Lipslide'
+  trickString = trickString.replace('Lip Slide', 'Lipslide');
+  trickString = trickString.replace('Tails Slide', 'Tails On');
+
+  return trickString;
 };
 
 
@@ -665,6 +833,7 @@ export default function TrickDiceScreen() {
           <TouchableOpacity onPress={handleBackToMenu}>
             <ThemedText style={diceStyles.backButtonText}>Back to Main Menu</ThemedText>
           </TouchableOpacity>
+          <ThemedText style={diceStyles.warningText}> ⚠️ WARNING: Use Laps&apos; trick generator at your own risk. Always wear protective gear, check your environment, and only attempt tricks within your proven skill level. </ThemedText>
         </ThemedView>
 
       </SafeAreaView>
@@ -814,5 +983,11 @@ const diceStyles = StyleSheet.create({
     fontSize: 16,
     color: Theme.darkText,
     textDecorationLine: 'underline',
+  },
+  warningText: {
+    fontSize: 12,
+    color: Theme.warning,
+    textAlign: 'center',
+    marginTop: '5%',
   }
 });

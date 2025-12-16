@@ -15,6 +15,8 @@ interface AuthContextType {
   isLoading: boolean;
   user: User | null;
   tokenRefreshed: number;
+  updateToken: (newAccessToken: string) => void;
+  updateUsername: (newUsername: string) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -80,7 +82,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace('/(tabs)/game');
   };
 
-  const value = { signIn, signOut, isAuthenticated, isLoading, user, tokenRefreshed };
+  const updateToken = (newAccessToken: string) => {
+    SecureStore.setItemAsync('userAccessToken', newAccessToken);
+    setTokenRefreshed(prev => prev + 1);
+  };
+  const updateUsername = useCallback(async (newUsername: string) => {
+    setUser(prevUser => {
+      if (!prevUser) return null;
+
+      // Create the new user object with the updated username
+      const newUser = { ...prevUser, username: newUsername };
+
+      //Persist the updated user data to SecureStore
+      SecureStore.setItemAsync('userData', JSON.stringify(newUser))
+        .catch(error => {
+          console.error('Failed to update userData in SecureStore:', error);
+        });
+
+      // Update the in-memory state
+      return newUser;
+    });
+  }, []);
+
+  const value = { signIn, signOut, isAuthenticated, isLoading, user, tokenRefreshed, updateToken, updateUsername };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

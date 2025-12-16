@@ -7,9 +7,11 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import React, { useState } from 'react';
 import {
   Alert,
+  Dimensions,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,12 +26,24 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 
+const MIN_USERNAME_LENGTH = 3;
+const MAX_USERNAME_LENGTH = 30;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 5;
+
 GoogleSignin.configure({
   webClientId: '789488486637-uhm44ifm2hamqo3c75h3rmunj35a3d2f.apps.googleusercontent.com',
   offlineAccess: true,
   iosClientId: '789488486637-k5g7e0j9hssugsuu00l8q6vh8vhudeg4.apps.googleusercontent.com',
   scopes: ['email', 'profile'],
 });
+
+// Get the full screen height for flexible sizing calculation
+const { height: screenHeight } = Dimensions.get('window');
+const CARD_MAX_HEIGHT = screenHeight * 0.9; // Card can take up max 90% of screen
+const LOGO_SIZE_FACTOR = 0.125;
+// Calculate the responsive size, capping it at a maximum (e.g., 110px)
+const responsiveLogoSize = Math.min(110, screenHeight * LOGO_SIZE_FACTOR);
 
 // Custom component for Password Input, simplifying the main component logic
 const PasswordInput = ({ value, onChangeText, placeholder, secureTextEntry, toggleVisibility }: {
@@ -61,6 +75,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const { signIn } = useAuth();
 
   const isLogin = mode === 'login';
@@ -77,17 +92,71 @@ export default function AuthScreen() {
 
       // Handle specific HTTP status codes and known backend errors
       if (status === 401) {
-        return 'Invalid username or password. Please check your credentials and try again.';
+        return 'Invalid username/email or password. Please check your credentials and try again.';
+      }
+      if (status === 403) {
+        return 'Login failed. Incorrect username/email or password.';
       }
       if (status === 409) {
         return 'This email or username is already taken. Please try logging in or using a different email/username.';
       }
-      if (status === 400 && message.includes('password')) {
-        return 'Invalid password format. Password must be strong (e.g., 8+ characters, including numbers and symbols).';
+      if (status === 400) {
+        // Check for validation errors from the backend
+        if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+          // Combine all field errors into a single message
+          const fieldErrors = data.errors.map((err: { field: string, message: string }) =>
+            `${err.field}: ${err.message}`
+          ).join('\n');
+          return `Validation Errors:\n${fieldErrors}`;
+        }
+
+        // Fallback for general 400 error messages
+        if (message.includes('password')) {
+          return 'Invalid password format. Password must be 5+ characters, including numbers and symbols).';
+        }
+        return message;
       }
       return message;
     }
     return defaultMessage;
+  };
+
+  const validateSignup = () => {
+    setValidationError(''); // Clear previous error
+
+    if (!email || !username || !password || !confirmPassword) {
+      setValidationError('All fields are required.');
+      return false;
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      setValidationError('Please enter a valid email address.');
+      return false;
+    }
+
+    if (username.length < MIN_USERNAME_LENGTH || username.length > MAX_USERNAME_LENGTH) {
+      setValidationError(`Username must be between ${MIN_USERNAME_LENGTH} and ${MAX_USERNAME_LENGTH} characters.`);
+      return false;
+    }
+
+    // Basic check for inappropriate characters
+    const INAPPROPRIATE_CHARS_REGEX = /[!@#$%^&*()+\=\[\]{};':"\\|,.<>\/?~`]/;
+    if (INAPPROPRIATE_CHARS_REGEX.test(username)) {
+      setValidationError('Username contains inappropriate characters. Only letters and numbers are recommended.');
+      return false;
+    }
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setValidationError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      setValidationError('Passwords do not match. Please ensure both passwords are identical.');
+      return false;
+    }
+
+    return true;
   };
 
   // Google signin
@@ -185,10 +254,16 @@ export default function AuthScreen() {
 
 
   const handleAuth = async () => {
-    console.log(isLogin, username, password, email, confirmPassword);
+    setValidationError('');
+
     if (isLogin) {
+      if (!username || !password) {
+        setValidationError('Please enter your username/email and password.');
+        return;
+      }
+
       try {
-        const response = await api.post(`/api/auth/login`, { username, password });
+        const response = await api.post(`/api/auth/login`, { identifier: username, password: password });
 
         const accessToken = response.data.accessToken;
         const refreshToken = response.data.refreshToken;
@@ -196,19 +271,18 @@ export default function AuthScreen() {
           username: response.data.username,
           id: response.data.id,
         };
-        console.log('login response:', response.data);
         signIn(accessToken, refreshToken, userData);
       } catch (error) {
         const errorMessage = getAuthErrorMessage(
           error,
           'Login failed. Please check your network and try again.'
         );
-        Alert.alert('Login Failed', errorMessage);
-        console.error('Login failed:', error);
+        setValidationError(errorMessage);
+        console.error('Login failed:', errorMessage);
       }
     } else {
-      if (password !== confirmPassword) {
-        Alert.alert('Signup Failed', 'Passwords do not match. Please ensure both passwords are identical.');
+      if (!validateSignup()) {
+        Alert.alert('Signup Failed', validationError);
         return;
       }
 
@@ -216,17 +290,14 @@ export default function AuthScreen() {
         const response = await api.post(`/api/auth/signup`, {
           email,
           username,
-          password,
-          confirmPassword,
+          password
         });
-
         const accessToken = response.data.accessToken;
         const refreshToken = response.data.refreshToken;
         const userData = {
           username: response.data.username,
           id: response.data.id,
         };
-        console.log('Signup successful! Token:', accessToken, 'User Data:', userData);
         signIn(accessToken, refreshToken, userData);
       } catch (error) {
         const errorMessage = getAuthErrorMessage(
@@ -239,6 +310,7 @@ export default function AuthScreen() {
     }
   };
 
+
   const renderLogoSection = () => (
     <View style={styles.logoContainer}>
       <TouchableOpacity
@@ -249,7 +321,7 @@ export default function AuthScreen() {
       </TouchableOpacity>
       <View style={styles.logoPlaceholder}>
         <ImageBackground
-          source={require('@/assets/images/logo.webp')}
+          source={require('@/assets/images/logo.png')}
           style={styles.logoPlaceholder}
           resizeMode="contain"
         />
@@ -294,11 +366,11 @@ export default function AuthScreen() {
     <View style={styles.formContainer}>
       <TextInput
         style={styles.input}
-        placeholder="Email Address or Username"
+        placeholder="Username or Email"
         placeholderTextColor="#838383ff"
         onChangeText={setUsername}
         value={username}
-        keyboardType="default"
+        keyboardType="email-address"
         autoCapitalize="none"
       />
       <PasswordInput
@@ -309,9 +381,7 @@ export default function AuthScreen() {
         toggleVisibility={togglePasswordVisibility}
       />
 
-      <TouchableOpacity style={styles.forgotPassword}>
-        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-      </TouchableOpacity>
+      {validationError ? <Text style={styles.errorText}>{validationError}</Text> : null}
       <TouchableOpacity style={styles.mainButton} onPress={handleAuth}>
         <Text style={styles.mainButtonText}>Log In</Text>
       </TouchableOpacity>
@@ -346,6 +416,7 @@ export default function AuthScreen() {
         onChangeText={setUsername}
         value={username}
         autoCapitalize="none"
+        maxLength={MAX_USERNAME_LENGTH}
       />
       <PasswordInput
         placeholder="Password"
@@ -361,6 +432,8 @@ export default function AuthScreen() {
         secureTextEntry={!showPassword}
         toggleVisibility={togglePasswordVisibility}
       />
+
+      {validationError ? <Text style={styles.errorText}>{validationError}</Text> : null}
 
       <TouchableOpacity style={styles.mainButton} onPress={handleAuth}>
         <Text style={styles.mainButtonText}>Sign Up</Text>
@@ -383,13 +456,20 @@ export default function AuthScreen() {
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.card}>
-            {renderLogoSection()}
-            {isLogin ? renderLoginFields() : renderSignupFields()}
-          </View>
+          <ScrollView
+            style={styles.scrollViewContainer}
+            contentContainerStyle={styles.scrollContentContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={[styles.card, { maxHeight: CARD_MAX_HEIGHT }]}>
+              {renderLogoSection()}
+              {isLogin ? renderLoginFields() : renderSignupFields()}
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
     </ImageBackground>
@@ -398,6 +478,15 @@ export default function AuthScreen() {
 
 // --- Stylesheet ---
 const styles = StyleSheet.create({
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+    fontWeight: '500',
+    width: '100%',
+  },
+
   safeArea: {
     flex: 1,
     width: '100%',
@@ -408,19 +497,29 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
     width: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingHorizontal: 40,
+  },
+  scrollViewContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  scrollContentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
   },
   backgroundImage: {
     flex: 1,
     width: '100%',
-    height: '120%',
+    height: '100%',
   },
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)', // Slightly less transparent background
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 15,
     padding: 30,
     alignItems: 'center',
@@ -435,9 +534,9 @@ const styles = StyleSheet.create({
     height: 44,
   },
   appleButton: {
-    width: '100%', // Take up full width of socialIconContainer
+    width: '100%',
     height: 44,
-    marginTop: 10, // Added spacing
+    marginTop: 10,
     marginBottom: 10,
     borderRadius: 10,
   },
@@ -458,15 +557,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   logoPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: responsiveLogoSize,
+    height: responsiveLogoSize,
+    borderRadius: responsiveLogoSize / 2,
     backgroundColor: '#E0F0FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
     borderWidth: 2,
     borderColor: '#B3E0FF',
+    overflow: 'hidden',
   },
   welcomeText: {
     fontSize: 22,
@@ -487,16 +586,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderWidth: 1,
     borderColor: Theme.border,
-    marginBottom: 15, // Default input spacing
-    fontSize: 16, // Added font size to ensure visibility
-    paddingRight: 50, // Added padding to prevent text under the eye icon
+    marginBottom: 15,
+    fontSize: 16,
+    paddingRight: 50,
   },
   passwordInputContainer: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
-    marginBottom: 15, // Spacing between password fields
+    marginBottom: 15,
   },
   passwordIcon: {
     position: 'absolute',
@@ -509,7 +608,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 50,
     backgroundColor: Theme.primary,
-    borderRadius: 10, // More subtle rounding
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 15,
@@ -525,11 +624,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  // Adjusted social container for vertical stacking and better width utilization
+
   socialIconsContainer: {
     flexDirection: 'column',
     alignItems: 'center',
-    width: '80%', // Confine social buttons to a smaller width than main form
+    width: '80%',
     marginTop: 5,
     marginBottom: 10,
   },
@@ -550,27 +649,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
     marginTop: 10,
-    marginBottom: 5,
-  },
-  forgotPassword: {
-    alignSelf: 'flex-start',
     marginBottom: 20,
   },
-  forgotPasswordText: {
-    color: '#A0A0A0',
-    fontSize: 12,
-  },
+
   orSignInText: {
     color: '#A0A0A0',
     fontSize: 12,
-    marginBottom: 10,
-    marginTop: 10,
   },
   switchModeButton: {
-    marginTop: 15,
+    marginTop: 10,
   },
   switchModeText: {
     color: '#007AFF',
     fontSize: 14,
+
   },
 });
