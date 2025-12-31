@@ -5,7 +5,7 @@ import { Theme } from '@/constants/theme';
 import { AntDesign } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useChallenge } from '../../context/WebSocketProvider';
 
@@ -156,49 +156,51 @@ export default function NotificationsScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-                    <AntDesign name="arrow-left" size={24} color={Theme.darkText} />
-                </TouchableOpacity>
-                <ThemedText style={styles.headerTitle}>Notifications</ThemedText>
-            </View>
+            <ScrollView>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+                        <AntDesign name="arrow-left" size={24} color={Theme.darkText} />
+                    </TouchableOpacity>
+                    <ThemedText style={styles.headerTitle}>Notifications</ThemedText>
+                </View>
 
-            <ThemedText style={[styles.placeholder, { display: challengeNotifications.length === 0 ? 'flex' : 'none' }]}>
-                No new notifications
-            </ThemedText>
+                <ThemedText style={[styles.placeholder, { display: challengeNotifications.length === 0 ? 'flex' : 'none' }]}>
+                    No new notifications
+                </ThemedText>
 
-            {challengeNotifications.map((notification) => (
+                {challengeNotifications.map((notification) => (
 
-                <ThemedView key={notification.id} style={styles.card}>
-                    <ThemedText style={styles.cardTitle}>
-                        Challenge from {notification.challenger.username}
-                    </ThemedText>
-                    <ThemedText style={styles.cardMessage}>
-                        Do you accept the challenge?
-                    </ThemedText>
-                    <ThemedText style={styles.cardDate}>
-                        {new Date(notification.createdAt).toLocaleString()}
-                    </ThemedText>
-                    <View style={styles.cardActions}>
-                        <TouchableOpacity
-                            onPress={handleAcceptChallenge(notification.id)}
-                            disabled={loading}
-                            style={styles.actionButton}
-                        >
-                            <ThemedText style={styles.acceptText}>
-                                {loading ? 'Processing...' : 'Accept'}
-                            </ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={handleDeclineChallenge(notification.id)}
-                            disabled={loading}
-                            style={styles.actionButton}
-                        >
-                            <ThemedText style={styles.declineText}>Decline</ThemedText>
-                        </TouchableOpacity>
-                    </View>
-                </ThemedView>
-            ))}
+                    <ThemedView key={notification.id} style={styles.card}>
+                        <ThemedText style={styles.cardTitle}>
+                            Challenge from {notification.challenger.username}
+                        </ThemedText>
+                        <ThemedText style={styles.cardMessage}>
+                            Do you accept the challenge?
+                        </ThemedText>
+                        <ThemedText style={styles.cardDate}>
+                            {new Date(notification.createdAt).toLocaleString()}
+                        </ThemedText>
+                        <View style={styles.cardActions}>
+                            <TouchableOpacity
+                                onPress={handleAcceptChallenge(notification.id)}
+                                disabled={loading}
+                                style={styles.actionButton}
+                            >
+                                <ThemedText style={styles.acceptText}>
+                                    {loading ? 'Processing...' : 'Accept'}
+                                </ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={handleDeclineChallenge(notification.id)}
+                                disabled={loading}
+                                style={styles.actionButton}
+                            >
+                                <ThemedText style={styles.declineText}>Decline</ThemedText>
+                            </TouchableOpacity>
+                        </View>
+                    </ThemedView>
+                ))}
+            </ScrollView>
         </SafeAreaView>
     );
 }

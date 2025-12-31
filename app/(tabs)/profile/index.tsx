@@ -1,14 +1,14 @@
-import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { Image, ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-
-// Assuming these are your custom components
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import UserSearchModal from '@/components/UserSearchModal';
 import { Theme } from '@/constants/theme';
+import { useChallengeCount } from '@/hooks/useChallengeCount';
+import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect } from 'react';
+import { Image, ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { gameSyncService } from '../../services/GameSyncService';
 
@@ -71,9 +71,11 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ title, children, actionText, 
 export default function ProfileScreen() {
   const [profileData, setProfileData] = React.useState<UserProfile | null>(null);
   const { signOut, updateToken, user, updateUsername } = useAuth();
+  const [searchModalVisible, setSearchModalVisible] = React.useState(false);
 
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [newUsername, setNewUsername] = React.useState('');
+  const { challengeCount, isLoading } = useChallengeCount();
 
   async function getProfileData() {
     try {
@@ -137,9 +139,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleViewMatch = () => {
-    alert('Navigating to Match Details...');
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -162,8 +161,20 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.mainContainer}>
         {/* Header with Logo and Action Icons */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/profile/notifications')} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/profile/notifications')}
+            style={styles.iconButton}
+          >
             <Feather name="bell" size={24} color={Theme.darkText} />
+
+            {/* The Notification Badge */}
+            {challengeCount > 0 && (
+              <View style={styles.badge}>
+                <ThemedText style={styles.badgeText}>
+                  {challengeCount > 9 ? '9+' : challengeCount}
+                </ThemedText>
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* S.K.I. Logo */}
@@ -190,6 +201,10 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/(tabs)/profile/friends')} style={styles.iconButton}>
               <Feather name="user-plus" size={24} color={Theme.darkText} />
+            </TouchableOpacity>
+            {/* Search Icon  */}
+            <TouchableOpacity onPress={() => setSearchModalVisible(true)} style={styles.iconButton}>
+              <Feather name="search" size={24} color={Theme.darkText} />
             </TouchableOpacity>
 
           </View>
@@ -284,6 +299,11 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+
+      <UserSearchModal
+        isVisible={searchModalVisible}
+        onClose={() => setSearchModalVisible(false)}
+      />
     </ImageBackground>
   );
 }
@@ -294,7 +314,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '120%',
-    paddingTop: 50,
+    paddingTop: 20,
   },
   mainContainer: {
     flex: 1,
@@ -310,6 +330,27 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 5,
+  },
+  badge: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: Theme.background,
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 18,
   },
   logoContainer: {
     flexDirection: 'row',

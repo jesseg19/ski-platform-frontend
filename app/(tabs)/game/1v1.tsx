@@ -1,4 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
+import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ImageBackground, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -101,6 +102,10 @@ export default function GameScreen1v1() {
     }
   }
 
+  function didPlayerTravelSufficientDistance(): boolean {
+    return totalDistance >= 75; // Require at least 75 meters of movement
+  }
+
   // State initialization helper
   const getInitialState = (props: ActiveGameProps | null) => {
     const currentUserUsername = user?.username || 'Player 1';
@@ -115,7 +120,7 @@ export default function GameScreen1v1() {
     let p2Letters = 0;
     let namesModalVisible = true;
     let calledTrick = 'Awaiting set call...';
-    let currentMessage = 'Welcome to Ski Platform!';
+    let currentMessage = 'Welcome to Laps 1v1!';
 
     if (props && user) {
       const player1Data = props.players.find(p => p.playerNumber === 1);
@@ -187,6 +192,8 @@ export default function GameScreen1v1() {
   const [pauseOrQuitModalVisible, setPauseOrQuitModalVisible] = useState(false);
   const [tricks, setTricks] = useState<GameTrick[]>([]);
   const [gameTricksModalVisible, gameTricksModalVisibleSet] = useState(false);
+  const [totalDistance, setTotalDistance] = useState(0);
+  const lastLocation = useRef<Location.LocationObjectCoords | null>(null);
 
   const isCurrentSetter = whosSet === p1Username;
 
@@ -249,6 +256,63 @@ export default function GameScreen1v1() {
     return () => unsubscribe();
   }, [gameId]);
 
+  // ==================== LOCATION TRACKING ====================
+  useEffect(() => {
+    let subscription: Location.LocationSubscription | null = null;
+
+    const startTracking = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("Permission Denied", "Location access is required to verify game movement.");
+        return;
+      }
+
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          distanceInterval: 5, // Updates every 5 meters moved
+        },
+        (location) => {
+          if (lastLocation.current) {
+            const dist = calculateDistance(
+              lastLocation.current.latitude,
+              lastLocation.current.longitude,
+              location.coords.latitude,
+              location.coords.longitude
+            );
+            setTotalDistance(prev => prev + dist);
+          }
+          lastLocation.current = location.coords;
+        }
+      );
+    };
+
+    if (gameStatus === 'playing') {
+      startTracking();
+    }
+
+    return () => {
+      if (subscription) subscription.remove();
+    };
+  }, [gameStatus]);
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) *
+      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    const distance = R * c;
+
+    // Filter out GPS jitter: ignore movements less than 1.5 meters
+    return distance > 1.5 ? distance : 0;
+  };
   // ==================== LOCAL STORAGE & SYNC ====================
   const saveLocalGameState = useCallback(async () => {
     if (gameId <= 0) return;
@@ -455,7 +519,7 @@ export default function GameScreen1v1() {
           setWhosSet(receiverName);
           setCurrentMessage(`Both missed. ${receiverName}'s set now.`);
         } else {
-          setCurrentMessage(`Both landed! ${whosSet} keeps the set.`);
+          setCurrentMessage(`Both landed! Game continues.`);
         }
         setCalledTrick("Awaiting set call...");
       }
@@ -466,7 +530,7 @@ export default function GameScreen1v1() {
         if (!isLastTry(receiverLetters)) {
           playerWhoGotLetter = receiverName;
           await saveRound(gameId, whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
-          setCurrentMessage(`${whosSet} landed! ${whosSet} keeps the set.`);
+          setCurrentMessage(`${whosSet} landed! ${receiverName} gets a letter.`);
           setCalledTrick("Awaiting set call...");
         } else {
           setLastTryPlayer(receiverName);
@@ -490,7 +554,7 @@ export default function GameScreen1v1() {
           setCalledTrick("Awaiting set call...");
         } else {
           setLastTryPlayer(whosSet);
-          const lastTryMsg = `${whosSet} fell! Setter gets 2nd try.`;
+          const lastTryMsg = `${whosSet} fell! Last try for ${whosSet}.`;
           setCurrentMessage(lastTryMsg);
           if (isOnline) {
             publishLastTry(gameId, whosSet, lastTryMsg);
@@ -584,9 +648,14 @@ export default function GameScreen1v1() {
           loserUsername: loser,
           winnerFinalLetters: winner === p1Username ? p1Letters : p2Letters,
           loserFinalLetters: loser === p1Username ? p1Letters : p2Letters,
+          totalDistanceTraveled: totalDistance,
         });
 
         await localGameDB.clearGameData(gameId);
+
+        if (!didPlayerTravelSufficientDistance()) {
+          Alert.alert("Game Over", `Game saved, however you did not travel a realistic distance so this game will not count towards your rank.`);
+        }
         router.push('/(tabs)/game');
         publishGameStatus(gameId, 'COMPLETED');
       } catch (error) {
@@ -773,11 +842,11 @@ export default function GameScreen1v1() {
           setCurrentMessage(`Both missed. ${receiverUsername}'s set now.`);
         } else {
           setWhosSet(setterUsername);
-          setCurrentMessage(`Both landed! ${setterUsername} keeps set.`);
+          setCurrentMessage(`Both landed! Game continues.`);
         }
       } else if (setterLanded && !receiverLanded) {
         setWhosSet(setterUsername);
-        setCurrentMessage(`${setterUsername} landed! ${setterUsername} keeps the set.`);
+        setCurrentMessage(`${setterUsername} landed! ${receiverUsername} gets a letter.`);
       } else if (!setterLanded && receiverLanded) {
         setWhosSet(receiverUsername);
         setCurrentMessage(`${setterUsername} fell. ${receiverUsername}'s set now.`);

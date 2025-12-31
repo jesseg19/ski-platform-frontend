@@ -15,18 +15,27 @@ interface LeaderboardItemProps {
     item: LeaderboardEntry;
     index: number;
     tab: 'allTime' | 'monthly';
+    onClose: () => void;
 }
 
-const LeaderboardItem: React.FC<LeaderboardItemProps> = ({ item, index, tab }) => {
+const LeaderboardItem: React.FC<LeaderboardItemProps> = ({ item, index, tab, onClose }) => {
     const rank = index + 1;
     const isTopThree = rank <= 3;
     let rankColor = isTopThree ? (rank === 1 ? Theme.gold : rank === 2 ? Theme.silver : Theme.bronze) : Theme.darkText;
 
     const statsText = tab === 'monthly' ? `${item.monthlyEloGain} this month` : `${item.eloRating} elo`;
 
+    const handlePress = () => {
+        onClose();
+        router.push({
+            pathname: "/(tabs)/profile/OtherPlayerProfileScreen",
+            params: { playerId: item.userId.toString() }
+        });
+    };
+
     return (
         <TouchableOpacity
-            onPress={() => router.push({ pathname: "/(tabs)/profile/OtherPlayerProfileScreen", params: { playerId: item.userId.toString() } })}
+            onPress={handlePress}
             activeOpacity={0.8}
         >
             <View style={[leaderboardStyles.itemContainer, {
@@ -80,7 +89,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ isVisible, onClose,
             <FlatList
                 data={data}
                 keyExtractor={(item) => item.username + item.userId.toString()} // Add userId for better key
-                renderItem={({ item, index }) => <LeaderboardItem item={item} index={index} tab={tab} />}
+                renderItem={({ item, index }) => <LeaderboardItem item={item} index={index} tab={tab} onClose={onClose} />}
                 contentContainerStyle={leaderboardStyles.flatListContent}
             />
         );

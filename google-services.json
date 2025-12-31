@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1006426252858",
+    "project_id": "laps-7b327",
+    "storage_bucket": "laps-7b327.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1006426252858:android:c71335876a5bdf38827703",
+        "android_client_info": {
+          "package_name": "com.jesseg19.skiplatform"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1006426252858-jrhpcis6mh4as2edvvn0ink9ol5tl0u4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzpDV6__0tx1n2J-HPngBoeV4Ei6e5gqY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1006426252858-jrhpcis6mh4as2edvvn0ink9ol5tl0u4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

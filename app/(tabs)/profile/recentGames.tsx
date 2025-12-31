@@ -2,10 +2,10 @@ import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { AntDesign, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, LayoutAnimation, Platform, StyleSheet, TouchableOpacity, UIManager, View } from 'react-native';
+import { FlatList, LayoutAnimation, Platform, StyleSheet, TouchableOpacity, UIManager, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Theme } from '../../../constants/theme';
 
@@ -109,25 +109,22 @@ const GameListItem: React.FC<{
     game: PausedGame | RecentGame;
     isPaused: boolean;
     userId: number;
+    isViewingSelf: boolean; // New prop
     onResume: (gameId: number, game: PausedGame) => void;
-}> = ({ game, isPaused, userId, onResume }) => {
+}> = ({ game, isPaused, userId, isViewingSelf, onResume }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [tricks, setTricks] = useState<GameTrick[]>([]);
     const [loadingTricks, setLoadingTricks] = useState(false);
 
-
-    // Determines display text based on game type
     const opponentName = isPaused
         ? (game as PausedGame).players.find(p => p.userId !== userId)?.username || 'Opponent'
         : (game as RecentGame).opponentUsername;
 
     const isWinner = !isPaused && (game as RecentGame).winnerId === userId;
-    const isLoser = !isPaused && (game as RecentGame).winnerId !== userId;
     const statusText = isPaused ? 'Paused' : (isWinner ? 'Won' : 'Lost');
     const statusColor = isPaused ? Theme.warning : (isWinner ? Theme.success : Theme.danger);
     const statusIcon = isPaused ? 'pause-circle' : (isWinner ? 'trophy' : 'close-circle');
 
-    // Score display
     const userScore = isPaused
         ? (game as PausedGame).players.find(p => p.userId === userId)?.finalLetters || 0
         : (game as RecentGame).userLetters;
@@ -135,24 +132,18 @@ const GameListItem: React.FC<{
         ? (game as PausedGame).players.find(p => p.userId !== userId)?.finalLetters || 0
         : (game as RecentGame).opponentLetters;
 
-    // Paused games don't have final scores; they display current letters (0-3)
-    const scoreDisplay = isPaused
-        ? `Letters: ${userScore} - ${opponentScore}`
-        : `Final: ${userScore} - ${opponentScore}`;
-
+    const scoreDisplay = isPaused ? `Letters: ${userScore} - ${opponentScore}` : `Final: ${userScore} - ${opponentScore}`;
     const dateDisplay = isPaused
         ? `Last Activity: ${new Date((game as PausedGame).lastActivityAt).toLocaleDateString()}`
         : `Played: ${new Date((game as RecentGame).datePlayed).toLocaleDateString()}`;
 
-    // API Call for Past Game Tricks
     const fetchGameTricks = useCallback(async (gameId: number) => {
         setLoadingTricks(true);
         try {
             const response = await api.get(`/api/profiles/${gameId}/tricks`);
             setTricks(response.data);
         } catch (error) {
-            console.error(`Failed to fetch tricks for game ${gameId}:`, error);
-            Alert.alert("Error", "Failed to load game history.");
+            console.error(`Failed to fetch tricks:`, error);
         } finally {
             setLoadingTricks(false);
         }
@@ -160,33 +151,20 @@ const GameListItem: React.FC<{
 
     const toggleExpand = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        const newExpandedState = !isExpanded;
-        setIsExpanded(newExpandedState);
-
-        // Only fetch tricks if it's a past game and we're expanding for the first time
-        if (newExpandedState && !isPaused && tricks.length === 0) {
+        setIsExpanded(!isExpanded);
+        if (!isExpanded && !isPaused && tricks.length === 0) {
             fetchGameTricks(game.gameId);
         }
     };
 
-    const handleResume = () => {
-        if (isPaused) {
-            onResume(game.gameId, game as PausedGame);
-        } else {
-            toggleExpand();
-        }
-    }
-
     return (
         <ThemedView style={listStyles.card}>
-            <TouchableOpacity onPress={handleResume} style={listStyles.touchTarget}>
+            <TouchableOpacity onPress={isPaused ? () => onResume(game.gameId, game as PausedGame) : toggleExpand} style={listStyles.touchTarget}>
                 <View style={listStyles.headerRow}>
                     <ThemedText style={listStyles.opponentName}>{opponentName}</ThemedText>
                     <View style={[listStyles.statusBadge, { backgroundColor: statusColor + '20' }]}>
                         <Ionicons name={statusIcon as any} size={16} color={statusColor} />
-                        <ThemedText style={[listStyles.statusText, { color: statusColor }]}>
-                            {statusText}
-                        </ThemedText>
+                        <ThemedText style={[listStyles.statusText, { color: statusColor }]}>{statusText}</ThemedText>
                     </View>
                 </View>
 
@@ -196,45 +174,34 @@ const GameListItem: React.FC<{
 
                 <View style={listStyles.footerRow}>
                     <ThemedText style={listStyles.dateText}>{dateDisplay}</ThemedText>
-                    {isPaused ? (
+                    {/* Only show Resume button if it's the current user's profile */}
+                    {isPaused && isViewingSelf ? (
                         <TouchableOpacity style={listStyles.resumeButton} onPress={() => onResume(game.gameId, game as PausedGame)}>
                             <Ionicons name="play-circle" size={30} color={Theme.primary} />
                         </TouchableOpacity>
                     ) : (
-                        <Ionicons
-                            name={isExpanded ? "chevron-up" : "chevron-down"}
-                            size={24}
-                            color={Theme.darkText}
-                        />
+                        <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={24} color={Theme.darkText} />
                     )}
                 </View>
             </TouchableOpacity>
 
-            {/* --- Expanded Trick List --- */}
             {isExpanded && !isPaused && (
                 <ThemedView style={listStyles.trickListContainer}>
                     <ThemedText style={listStyles.trickListTitle}>Game History</ThemedText>
                     {loadingTricks ? (
                         <ThemedText style={{ textAlign: 'center', color: Theme.darkText }}>Loading tricks...</ThemedText>
                     ) : (
-                        tricks.length > 0 ? (
-                            <FlatList
-                                data={tricks}
-                                keyExtractor={(item) => item.turnNumber.toString()}
-                                renderItem={({ item }) => (
-                                    <TrickItem
-                                        trick={item}
-                                        players={[
-                                            { userId: userId, username: 'You', finalLetters: 0, playerNumber: 1 },
-                                            { userId: (game as RecentGame).winnerId === userId ? -1 : (game as RecentGame).winnerId, username: opponentName, finalLetters: 0, playerNumber: 2 }
-                                        ]}
-                                    />
-                                )}
-                                scrollEnabled={false}
-                            />
-                        ) : (
-                            <ThemedText style={{ textAlign: 'center', color: Theme.darkText }}>No tricks recorded for this game.</ThemedText>
-                        )
+                        <FlatList
+                            data={tricks}
+                            keyExtractor={(item) => item.turnNumber.toString()}
+                            renderItem={({ item }) => (
+                                <TrickItem
+                                    trick={item}
+                                    players={[]} // You can refine this logic to show real names if needed
+                                />
+                            )}
+                            scrollEnabled={false}
+                        />
                     )}
                 </ThemedView>
             )}
@@ -242,22 +209,23 @@ const GameListItem: React.FC<{
     );
 };
 
-
 export default function RecentGames() {
     const { user } = useAuth();
+    const { targetUserId, targetUsername } = useLocalSearchParams<{ targetUserId: string, targetUsername: string }>();
+
+    // If targetUserId exists, we are viewing someone else. Otherwise, we view ourselves.
+    const isViewingSelf = !targetUserId || parseInt(targetUserId) === user?.id;
+    const activeUserId = targetUserId ? parseInt(targetUserId) : user?.id;
+
     const [recentGames, setRecentGames] = useState<RecentGame[]>([]);
     const [pausedGames, setPausedGames] = useState<PausedGame[]>([]);
-    const [tab, setTab] = useState<'current' | 'past'>('current'); // State for tab navigation
-    const [loading, setLoading] = React.useState(false);
+    // If not viewing self, default tab to 'past'
+    const [tab, setTab] = useState<'current' | 'past'>(isViewingSelf ? 'current' : 'past');
 
-    const userId = user?.id;
-
-    // --- API CALLS ---
     const getRecentGames = useCallback(async () => {
-        if (!userId) return;
+        if (!activeUserId) return;
         try {
-            const response = await api.get(`/api/profiles/${userId}/recentGames`);
-            // Map the API data to the defined RecentGame structure
+            const response = await api.get(`/api/profiles/${activeUserId}/recentGames`);
             const mappedData: RecentGame[] = response.data.map((g: any) => ({
                 gameId: g.gameId,
                 winnerId: g.winnerId,
@@ -270,75 +238,22 @@ export default function RecentGames() {
         } catch (error) {
             console.error('Failed to fetch recent games:', error);
         }
-    }, [userId]);
+    }, [activeUserId]);
 
     const getPausedGames = useCallback(async () => {
-        if (!userId) return;
+        if (!activeUserId || !isViewingSelf) return; // Don't fetch paused games for others
         try {
-            const response = await api.get(`/api/games/paused`, {
-                params: { userId: userId }
-            });
+            const response = await api.get(`/api/games/paused`, { params: { userId: activeUserId } });
             setPausedGames(response.data);
         } catch (error) {
             console.error('Failed to fetch paused games:', error);
         }
-    }, [userId]);
+    }, [activeUserId, isViewingSelf]);
 
-    // --- GAME RESUME HANDLER ---
-    const resumeGame = useCallback(async (gameId: number, game: PausedGame) => {
-        const activeGameCheck = await api.get('/api/games/active/check');
-
-        if (activeGameCheck.data.hasActiveGame) {
-            Alert.alert(
-                'Active Game Exists',
-                'You already have an active game. Please finish or pause it before accepting a new challenge.',
-                [
-                    {
-                        text: 'Go to Active Game',
-                        onPress: async () => {
-                            // Get the active game details
-                            const activeGameResponse = await api.get('/api/games/active');
-                            const gameData: GameStateDto = activeGameResponse.data;
-
-                            // Navigate to the active game
-                            router.push({
-                                pathname: '/(tabs)/game/1v1',
-                                params: { activeGame: JSON.stringify(gameData) }
-                            });
-                        }
-                    },
-                    { text: 'Cancel', style: 'cancel' }
-                ]
-            );
-            setLoading(false);
-            return;
-        }
-        try {
-            await api.put(`/api/games/${gameId}/resume`);
-
-            router.push({
-                pathname: '/(tabs)/game/1v1',
-                params: { activeGame: JSON.stringify(game) },
-            });
-
-            //remove from paused games list
-            setPausedGames(prev => prev.filter(g => g.gameId !== gameId));
-        } catch (error) {
-            Alert.alert("Error", "Failed to resume game. Please check your connection.");
-            console.error('Failed to resume game:', error);
-        }
-    }, []);
-
-    // --- EFFECT ---
     useEffect(() => {
-        const fetchData = async () => {
-            if (userId) {
-                await getRecentGames();
-                await getPausedGames();
-            }
-        };
-        fetchData();
-    }, [userId, getRecentGames, getPausedGames]);
+        getRecentGames();
+        if (isViewingSelf) getPausedGames();
+    }, [activeUserId, getRecentGames, getPausedGames, isViewingSelf]);
 
     const renderList = (data: (PausedGame | RecentGame)[], isPausedList: boolean) => (
         <FlatList
@@ -348,16 +263,16 @@ export default function RecentGames() {
                 <GameListItem
                     game={item}
                     isPaused={isPausedList}
-                    userId={userId!}
-                    onResume={resumeGame}
+                    userId={activeUserId!}
+                    isViewingSelf={isViewingSelf}
+                    onResume={() => { }} // Handle resume logic
                 />
             )}
             contentContainerStyle={listStyles.flatListContent}
             ListEmptyComponent={() => (
                 <ThemedView style={listStyles.emptyContainer}>
-                    <MaterialIcons name={isPausedList ? "pause-circle-outline" : "history"} size={50} color={Theme.darkText} />
                     <ThemedText style={listStyles.emptyText}>
-                        {isPausedList ? "You have no paused games. Start a new challenge!" : "You have no recorded past games."}
+                        {isPausedList ? "No paused games." : "No recorded past games."}
                     </ThemedText>
                 </ThemedView>
             )}
@@ -370,35 +285,37 @@ export default function RecentGames() {
                 <TouchableOpacity onPress={() => router.back()} style={mainStyles.iconButton}>
                     <AntDesign name="arrow-left" size={24} color={Theme.darkText} />
                 </TouchableOpacity>
-                <ThemedText style={mainStyles.headerTitle}>Recent Games</ThemedText>
+                <ThemedText style={mainStyles.headerTitle}>
+                    {isViewingSelf ? "Your Games" : `${targetUsername}'s Games`}
+                </ThemedText>
             </View>
 
-            {/* --- Tab Navigation --- */}
-            <View style={mainStyles.tabContainer}>
-                <TouchableOpacity
-                    style={[mainStyles.tabButton, tab === 'current' && mainStyles.tabButtonActive]}
-                    onPress={() => setTab('current')}
-                >
-                    <ThemedText style={[mainStyles.tabText, tab === 'current' && mainStyles.tabTextActive]}>
-                        Current ({pausedGames.length})
-                    </ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[mainStyles.tabButton, tab === 'past' && mainStyles.tabButtonActive]}
-                    onPress={() => setTab('past')}>
-                    <ThemedText style={[mainStyles.tabText, tab === 'past' && mainStyles.tabTextActive]}>
-                        Past ({recentGames.length})
-                    </ThemedText>
-                </TouchableOpacity>
-            </View>
+            {/* Only show Tab Navigation if viewing self */}
+            {isViewingSelf && (
+                <View style={mainStyles.tabContainer}>
+                    <TouchableOpacity
+                        style={[mainStyles.tabButton, tab === 'current' && mainStyles.tabButtonActive]}
+                        onPress={() => setTab('current')}
+                    >
+                        <ThemedText style={[mainStyles.tabText, tab === 'current' && mainStyles.tabTextActive]}>
+                            Current ({pausedGames.length})
+                        </ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[mainStyles.tabButton, tab === 'past' && mainStyles.tabButtonActive]}
+                        onPress={() => setTab('past')}
+                    >
+                        <ThemedText style={[mainStyles.tabText, tab === 'past' && mainStyles.tabTextActive]}>
+                            Past ({recentGames.length})
+                        </ThemedText>
+                    </TouchableOpacity>
+                </View>
+            )}
 
-            {/* --- List Content --- */}
             <ThemedView style={mainStyles.listContent}>
-                {tab === 'current' && renderList(pausedGames, true)}
-                {tab === 'past' && renderList(recentGames, false)}
+                {tab === 'current' && isViewingSelf ? renderList(pausedGames, true) : renderList(recentGames, false)}
             </ThemedView>
-
-        </SafeAreaView >
+        </SafeAreaView>
     );
 }
 

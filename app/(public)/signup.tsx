@@ -32,7 +32,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 5;
 
 GoogleSignin.configure({
-  webClientId: '789488486637-uhm44ifm2hamqo3c75h3rmunj35a3d2f.apps.googleusercontent.com',
+  webClientId: '1006426252858-jrhpcis6mh4as2edvvn0ink9ol5tl0u4.apps.googleusercontent.com',
   offlineAccess: true,
   iosClientId: '789488486637-k5g7e0j9hssugsuu00l8q6vh8vhudeg4.apps.googleusercontent.com',
   scopes: ['email', 'profile'],
@@ -42,10 +42,10 @@ GoogleSignin.configure({
 const { height: screenHeight } = Dimensions.get('window');
 const CARD_MAX_HEIGHT = screenHeight * 0.9; // Card can take up max 90% of screen
 const LOGO_SIZE_FACTOR = 0.125;
-// Calculate the responsive size, capping it at a maximum (e.g., 110px)
+// Calculate the responsive size, capping it at a maximum of 110
 const responsiveLogoSize = Math.min(110, screenHeight * LOGO_SIZE_FACTOR);
 
-// Custom component for Password Input, simplifying the main component logic
+// Custom component for Password Input with visibility toggle
 const PasswordInput = ({ value, onChangeText, placeholder, secureTextEntry, toggleVisibility }: {
   value: string;
   onChangeText: (text: string) => void;
@@ -122,7 +122,7 @@ export default function AuthScreen() {
   };
 
   const validateSignup = () => {
-    setValidationError(''); // Clear previous error
+    setValidationError('');
 
     if (!email || !username || !password || !confirmPassword) {
       setValidationError('All fields are required.');

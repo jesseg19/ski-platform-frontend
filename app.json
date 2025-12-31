@@ -2,7 +2,7 @@
   "expo": {
     "name": "Laps",
     "slug": "ski-platform",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "skiplatform",
@@ -13,6 +13,7 @@
       "bundleIdentifier": "ca.jessegross.skiplatform",
       "usesAppleSignIn": true,
       "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs your location to verify you are moving during the game of S.K.I.",
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSExceptionDomains": {
@@ -32,7 +33,12 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.jesseg19.skiplatform"
+      "package": "com.jesseg19.skiplatform",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -40,6 +46,12 @@
     },
     "plugins": [
       "expo-apple-authentication",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow S.K.I. to use your location to track game distance."
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -57,7 +69,16 @@
         }
       ],
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo.png",
+          "color": "#ffffff",
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -68,6 +89,6 @@
       "eas": {
         "projectId": "1bd3a793-f5d7-4f45-b7ba-fe43de60ddef"
       }
-    }
+    },
   }
 }

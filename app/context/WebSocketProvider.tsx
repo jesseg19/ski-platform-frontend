@@ -9,7 +9,7 @@ import * as SecureStore from 'expo-secure-store';
 import SockJS from 'sockjs-client';
 
 const SOCKET_URL = 'https://laps.api.jessegross.ca/ws';
-// const SOCKET_URL = 'http://192.168.2.97:5000/ws';
+// const SOCKET_URL = 'http://192.168.139.1:5000/ws';
 
 interface User {
     userId: number;

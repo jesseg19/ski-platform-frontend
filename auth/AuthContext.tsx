@@ -1,6 +1,8 @@
+import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { registerForPushNotificationsAsync, sendPushTokenToBackend } from '../app/services/NotificationService';
 import { setSignOutCallback } from './axios';
 
 interface User {
@@ -69,6 +71,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     checkTokenAndUser();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      registerForPushNotificationsAsync().then(token => {
+        if (token) {
+          sendPushTokenToBackend(token);
+        }
+      });
+    }
+  }, [user]); // Run when the user object is set
+
+  useEffect(() => {
+    // Listener for when the user taps on the notification (app is in foreground, background, or closed)
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+
+      if (data.type === 'NEW_CHALLENGE') {
+        // Navigate the user to the challenge screen 
+        router.navigate('/(tabs)/profile/notifications');
+      }
+    });
+
+    return () => {
+      // Clean up the subscription when the component unmounts
+      subscription.remove();
+    };
   }, []);
 
   const signIn = async (accessToken: string, refreshToken: string, userData: User) => {

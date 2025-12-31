@@ -5,8 +5,10 @@ import { Theme } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../../auth/AuthContext';
+import { useChallenge } from '../../context/WebSocketProvider';
 
 
 // --- Profile Card Component ---
@@ -115,6 +117,10 @@ export default function OtherPlayerProfileScreen() {
     const [profileData, setProfileData] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const { user } = useAuth();
+    const { isConnected, sendChallenge } = useChallenge();
+    const [isChallengePending, setIsChallengePending] = useState(false);
+
     async function getProfileData(id: string) {
         if (!id) return;
         try {
@@ -127,11 +133,108 @@ export default function OtherPlayerProfileScreen() {
         }
     }
 
-    useEffect(() => {
-        if (viewedPlayerId) {
-            getProfileData(viewedPlayerId.toString());
+    // Function to check if a challenge is already pending (from modal logic)
+    const checkChallengeStatus = async (challengerId: number, challengedId: number) => {
+        if (!challengerId || !challengedId || challengerId === challengedId) {
+            setIsChallengePending(false);
+            return;
         }
-    }, [viewedPlayerId]);
+        try {
+            // This is the same endpoint from your modal logic
+            const response = await api.get(`api/games/challenges/pending/challenger`);
+            const pendingChallenges = response.data;
+
+            const sentChallenge = pendingChallenges.find((challenge: any) => {
+                return challenge.challenger.id === challengerId
+                    && challenge.challenged.id === challengedId
+                    && challenge.status === 'PENDING';
+            });
+
+            setIsChallengePending(!!sentChallenge);
+        } catch (error) {
+            console.error("Error fetching pending challenges:", error);
+            setIsChallengePending(false);
+        }
+    };
+
+    // NEW: Challenge Handler
+    const handleDirectChallenge = async () => {
+        if (!profileData || !viewedPlayerId) return;
+
+        // --- 1. Validation Checks (Adapted from the modal) ---
+        if (!user?.id) {
+            Alert.alert('Authentication Error', 'User ID is missing. Please log in again.');
+            return;
+        }
+
+        const challengerId = user.id;
+        const challengedId = profileData.id;
+        const challengedUsername = profileData.username;
+
+        // Self-challenge check is implicitly covered since this page only views others.
+
+        if (!isConnected) {
+            Alert.alert('Connection Error', 'Not connected to the server. Please wait for connection or try again.');
+            return;
+        }
+
+        // --- 2. Check for Pending Challenge ---
+        // Run the status check synchronously before sending a new one
+        await checkChallengeStatus(challengerId, challengedId);
+
+        if (isChallengePending) {
+            Alert.alert(
+                'Challenge Pending',
+                `You have already sent a challenge to ${challengedUsername}. Waiting for them to accept.`,
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+
+        // --- 3. Confirmation Alert and Challenge Send ---
+        Alert.alert(
+            'Challenge User',
+            `Are you sure you want to challenge ${challengedUsername} to a game?`,
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Challenge!',
+                    onPress: () => {
+                        // Optimistically set pending state
+                        setIsChallengePending(true);
+
+                        // Send the challenge via WebSocket
+                        sendChallenge(challengedId);
+
+                        // Success message
+                        Alert.alert(
+                            'Challenge Sent!',
+                            `A challenge has been sent to ${challengedUsername}.`,
+                            [{ text: 'OK' }]
+                        );
+                    },
+                    style: 'default',
+                },
+            ]
+        );
+    };
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (viewedPlayerId) {
+                await getProfileData(viewedPlayerId.toString());
+                // After fetching the profile, check for pending challenges
+                if (user?.id) {
+                    await checkChallengeStatus(user.id, parseInt(viewedPlayerId.toString()));
+                }
+            }
+        };
+
+        fetchData();
+    }, [viewedPlayerId, user?.id]);
 
     if (loading) {
         return <ThemedView style={styles.mainContainer}><Text>Loading Profile...</Text></ThemedView>;
@@ -155,12 +258,6 @@ export default function OtherPlayerProfileScreen() {
                         <Feather name="arrow-left" size={28} color={Theme.darkText} />
                     </TouchableOpacity>
 
-                    {/* S.K.I. Logo */}
-                    {/* <View style={styles.logoContainer}>
-                        {/* <Image source={require('@/assets/images/logo.png')} style={styles.mountainLogo} /> 
-                        <ThemedText style={styles.logoText}>S.K.I.</ThemedText>
-                    </View> */}
-
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollViewContent}>
@@ -171,6 +268,24 @@ export default function OtherPlayerProfileScreen() {
                         <ThemedText style={styles.username}>{profileData.username}</ThemedText>
                         <ThemedText style={styles.rank}>ELO: {profileData.eloRating}</ThemedText>
                         <ThemedText style={styles.bio}>{profileData.bio || 'No bio available.'}</ThemedText>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.challengeButton,
+                                isChallengePending && styles.challengeButtonPending
+                            ]}
+                            onPress={handleDirectChallenge}
+                            disabled={isChallengePending} // Disable if a challenge is already sent
+                        >
+                            <ThemedText style={styles.challengeButtonText}>
+                                {isChallengePending ? 'Challenge Sent!' : 'Challenge'}
+                            </ThemedText>
+                            {!isChallengePending && (
+                                <Feather name="zap" size={20} color={Theme.darkText} style={{ marginLeft: 8 }} />
+                            )}
+                        </TouchableOpacity>
+
+
                     </View>
 
                     {profileData.totalMatchesAgainst > 0 && (
@@ -182,7 +297,7 @@ export default function OtherPlayerProfileScreen() {
                         />
                     )}
 
-                    {/* Key Stats Card (Unchanged) */}
+                    {/* Key Stats Card  */}
                     <ProfileCard title="Key Stats">
                         <View style={styles.statsRow}>
                             <View style={styles.statItem}>
@@ -202,7 +317,7 @@ export default function OtherPlayerProfileScreen() {
 
                     {/* Recent Tricks/Games Card */}
                     {profileData.recentGame && (
-                        <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { alert('View their full match history!'); }}>
+                        <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { router.push({ pathname: '/(tabs)/profile/recentGames', params: { targetUserId: profileData.id, targetUsername: profileData.username } }) }}>
                             <View style={styles.recentTrickRow}>
                                 <Image source={require('@/assets/images/avatar.png')} style={styles.recentTrickAvatar} />
                                 <View style={styles.recentTrickDetails}>
@@ -252,7 +367,6 @@ const styles = StyleSheet.create({
     recentTrickScoreValue: { fontSize: 14, fontWeight: 'bold', color: Theme.primary, },
 
 
-    // --- NEW Comparison Styles ---
     comparisonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -279,5 +393,26 @@ const styles = StyleSheet.create({
         width: 1,
         height: '80%',
         backgroundColor: Theme.border,
+    },
+
+    challengeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Theme.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderRadius: 10,
+        marginTop: 15,
+        marginBottom: 10,
+        width: '60%',
+    },
+    challengeButtonPending: {
+        backgroundColor: Theme.border,
+    },
+    challengeButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: Theme.darkText,
     },
 });
