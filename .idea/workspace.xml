@@ -6,23 +6,15 @@
   <component name="ChangeListManager">
     <list default="true" id="f78c3035-1ea8-476b-85a2-70a06c9a7497" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.json" beforeDir="false" afterPath="$PROJECT_DIR$/app.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/(public)/signup.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(public)/signup.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/game/1v1.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/game/1v1.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/(tabs)/game/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/game/index.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/(tabs)/game/trickGenerator.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/game/trickGenerator.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/profile/OtherPlayerProfileScreen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/profile/OtherPlayerProfileScreen.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/(tabs)/profile/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/profile/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/profile/notifications.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/profile/notifications.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/(tabs)/profile/recentGames.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/profile/recentGames.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/context/WebSocketProvider.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/context/WebSocketProvider.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/auth/AuthContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/auth/AuthContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/ChallengeModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/ChallengeModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/LeaderboardModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/LeaderboardModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/_layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/index.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/UserSearchModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/UserSearchModal.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,23 +48,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true",
-    "kotlin-language-version-configured": "true",
-    "settings.editor.selected.configurable": "AndroidSdkUpdater",
-    "show.migrate.to.gradle.popup": "false"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;AndroidSdkUpdater&quot;,
+    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\CODING\ski_platform_frontend\ski-platform" />

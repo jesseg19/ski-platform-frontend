@@ -5,7 +5,7 @@ import { ThemedView } from '@/components/themed-view';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, LayoutAnimation, Platform, StyleSheet, TouchableOpacity, UIManager, View } from 'react-native';
+import { Alert, FlatList, LayoutAnimation, Platform, StyleSheet, TouchableOpacity, UIManager, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Theme } from '../../../constants/theme';
 
@@ -250,6 +250,51 @@ export default function RecentGames() {
         }
     }, [activeUserId, isViewingSelf]);
 
+    // --- GAME RESUME HANDLER ---
+    const resumeGame = useCallback(async (gameId: number, game: PausedGame) => {
+        const activeGameCheck = await api.get('/api/games/active/check');
+
+        if (activeGameCheck.data.hasActiveGame) {
+            Alert.alert(
+                'Active Game Exists',
+                'You already have an active game. Please finish or pause it before accepting a new challenge.',
+                [
+                    {
+                        text: 'Go to Active Game',
+                        onPress: async () => {
+                            // Get the active game details
+                            const activeGameResponse = await api.get('/api/games/active');
+                            const gameData: GameStateDto = activeGameResponse.data;
+
+                            // Navigate to the active game
+                            router.push({
+                                pathname: '/(tabs)/game/1v1',
+                                params: { activeGame: JSON.stringify(gameData) }
+                            });
+                        }
+                    },
+                    { text: 'Cancel', style: 'cancel' }
+                ]
+            );
+            return;
+        }
+        try {
+            await api.put(`/api/games/${gameId}/resume`);
+
+            router.push({
+                pathname: '/(tabs)/game/1v1',
+                params: { activeGame: JSON.stringify(game) },
+            });
+
+            //remove from paused games list
+            setPausedGames(prev => prev.filter(g => g.gameId !== gameId));
+        } catch (error) {
+            Alert.alert("Error", "Failed to resume game. Please check your connection.");
+            console.error('Failed to resume game:', error);
+        }
+    }, []);
+
+
     useEffect(() => {
         getRecentGames();
         if (isViewingSelf) getPausedGames();
@@ -265,7 +310,7 @@ export default function RecentGames() {
                     isPaused={isPausedList}
                     userId={activeUserId!}
                     isViewingSelf={isViewingSelf}
-                    onResume={() => { }} // Handle resume logic
+                    onResume={resumeGame}
                 />
             )}
             contentContainerStyle={listStyles.flatListContent}

@@ -233,7 +233,7 @@ export default function ProfileScreen() {
               <ThemedText style={styles.username}>{profileData?.username}</ThemedText>
             )}
             <ThemedText style={styles.rank}>ELO: {profileData?.eloRating}</ThemedText>
-            <ThemedText style={styles.bio}>{profileData?.bio}</ThemedText>
+            {/* <ThemedText style={styles.bio}>{profileData?.bio}</ThemedText> */}
 
           </View>
 
@@ -298,12 +298,13 @@ export default function ProfileScreen() {
             <ThemedText style={styles.signOutText}>Sign out</ThemedText>
           </TouchableOpacity>
         </ScrollView>
+        <UserSearchModal
+          isVisible={searchModalVisible}
+          onClose={() => setSearchModalVisible(false)}
+        />
       </SafeAreaView>
 
-      <UserSearchModal
-        isVisible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-      />
+
     </ImageBackground>
   );
 }
@@ -370,12 +371,12 @@ const styles = StyleSheet.create({
   // --- ScrollView Content ---
   scrollViewContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 0,
   },
   // --- Profile Header Block ---
   profileHeaderBlock: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 0,
   },
   avatar: {
     width: 90,
@@ -402,31 +403,12 @@ const styles = StyleSheet.create({
     color: Theme.darkText,
     marginBottom: 4,
   },
-  bio: {
-    fontSize: 14,
-    color: Theme.darkText,
-    marginBottom: 10,
-  },
-  // --- Pagination Dots ---
-  paginationDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#CCC',
-    marginHorizontal: 3,
-  },
-  dotActive: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Theme.secondary,
-    marginHorizontal: 3,
-  },
+  // bio: {
+  //   fontSize: 14,
+  //   color: Theme.darkText,
+  //   marginBottom: 10,
+  // },
+
   // --- Card Styles ---
   card: {
     backgroundColor: Theme.cardBackground,
@@ -443,7 +425,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 5,
   },
   cardTitle: {
     fontSize: 16,

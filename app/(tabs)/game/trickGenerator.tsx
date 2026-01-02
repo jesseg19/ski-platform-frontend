@@ -424,9 +424,10 @@ const diceStyles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   warningText: {
-    fontSize: 12,
+    fontSize: 10,
     color: Theme.warning,
     textAlign: 'center',
-    marginTop: '5%',
+    marginTop: 8,
+    lineHeight: 12,
   }
 });

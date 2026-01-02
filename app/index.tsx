@@ -14,7 +14,7 @@ export default function Index() {
 
       if (token) {
         // User is authenticated, navigate to the app's main page
-        router.replace('/(tabs)/home');
+        router.replace('/(tabs)/game');
       } else {
         // No token, navigate to the login page
         router.replace('/(public)/signup');

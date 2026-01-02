@@ -84,7 +84,7 @@ const UserSearchModal: React.FC<UserSearchModalProps> = ({ isVisible, onClose })
             transparent={false}
             onRequestClose={onClose}
         >
-            <SafeAreaView style={modalStyles.container}>
+            <SafeAreaView style={modalStyles.container} edges={['top', 'bottom']}>
 
                 {/* Search Bar and Close Button */}
                 <View style={modalStyles.header}>
@@ -137,6 +137,7 @@ const modalStyles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Theme.background,
+        paddingTop: 30,
     },
     header: {
         flexDirection: 'row',
@@ -167,6 +168,7 @@ const modalStyles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 15,
+        marginTop: 0,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: Theme.border,
     },

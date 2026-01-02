@@ -182,7 +182,6 @@ export default function AuthScreen() {
         } = backendResponse.data;
 
         signIn(accessToken, refreshToken, { username: userName, id: userId });
-        Alert.alert('Success', 'Google Sign-In successful!');
       } else {
         Alert.alert('Cancelled', 'Google Sign-In was cancelled or failed to get ID token.');
       }
@@ -234,7 +233,6 @@ export default function AuthScreen() {
         } = backendResponse.data;
 
         signIn(accessToken, refreshToken, { username: userName, id: userId });
-        Alert.alert('Success', 'Apple Sign-In successful!');
       } else {
         Alert.alert('Cancelled', 'Apple Sign-In was cancelled or failed to get ID token.');
       }
