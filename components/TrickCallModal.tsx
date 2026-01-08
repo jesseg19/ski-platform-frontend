@@ -1,9 +1,33 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import TrickSelector from '@/components/trickSelector'; // Assuming this is a dropdown component
+import TrickSelector from '@/components/trickSelector';
 import { Theme } from '@/constants/theme';
-import { AntDesign, Feather } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import {
+    JUMP_AXIS_OPTIONS,
+    JUMP_DEFAULT_TRICKS,
+    JUMP_DEGREE_OF_ROTATION_OPTIONS,
+    JUMP_DIRECTION_OPTIONS,
+    JUMP_GRAB_OPTIONS,
+    JUMP_LANDING_VARIATIONS,
+    JUMP_NUMBER_OF_FLIPS_OPTIONS,
+    JUMP_STANCE_OPTIONS,
+    JUMP_TAKE_OFF_VARIATIONS,
+    RAIL_DEFAULT_TRICKS,
+    RAIL_LANDING_VARIATIONS,
+    RAIL_SETUP_DIRECTION_OPTIONS,
+    RAIL_SETUP_STANCE_OPTIONS,
+    RAIL_SETUP_TAKEOFF_FORWARD_OPTIONS,
+    RAIL_SETUP_TAKEOFF_SWITCH_OPTIONS,
+    RAIL_SPIN_OUT_TYPE_OPTIONS,
+    RAIL_SWAP_TYPE_OPTIONS,
+    RAIL_TAKE_OFF_VARIATIONS,
+    RAIL_TRICK_SPIN_OPTIONS,
+    allTrickTerms
+} from '@/constants/tricks';
+import { parseVoiceTrick } from '@/constants/trickVoiceUtils';
+import { AntDesign, Feather, FontAwesome } from '@expo/vector-icons';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Modal,
@@ -12,32 +36,9 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { CustomButton } from './CustomButton';
-
-// --- JUMP TRICK OPTIONS  ---
-const JUMP_DEFAULT_TRICKS = ["Backflip", "Frontflip", "Zero Spin", "Underflip"];
-const JUMP_TAKE_OFF_VARIATIONS = ["Nose Butter", "Tail Butter", "Take Off Holding Grab", "Blender", "Carving", "Lazy boy", "Tokyo Drift"];
-const JUMP_LANDING_VARIATIONS = ["Land Holding Grab"];
-const JUMP_STANCE_OPTIONS = ["Forward", "Switch"];
-const JUMP_DIRECTION_OPTIONS = ["Left", "Right"];
-const JUMP_NUMBER_OF_FLIPS_OPTIONS = ["Single", "Double"];
-const JUMP_AXIS_OPTIONS = ["Bio", "Rodeo", "Cork", "Misty", "On Axis"];
-const JUMP_DEGREE_OF_ROTATION_OPTIONS = ["180", "360", "540", "720", "900", "1080", "1260", "1440"];
-const JUMP_GRAB_OPTIONS = ["Mute", "Safety", "Blunt", "Nose", "Stale", "Japan", "Critical", "Octo", "Screamin' Seamen", "Esco", "Seatbelt", "Dub Japan", "Truck",];
-
-// --- RAIL TRICK OPTIONS ---
-const RAIL_DEFAULT_TRICKS = ["Kfed", "Ellen"];
-const RAIL_TAKE_OFF_VARIATIONS = ["Nose Butter", "Tail Butter", "Take Off Holding Grab", "Blender", "Tokyo Drift"];
-const RAIL_LANDING_VARIATIONS = ["Land Holding Grab"];
-const RAIL_SETUP_STANCE_OPTIONS = JUMP_STANCE_OPTIONS;
-const RAIL_SETUP_DIRECTION_OPTIONS = ["Left", "Right", "Left foot", "Right foot"];
-const RAIL_SETUP_TAKEOFF_FORWARD_OPTIONS = ["Regular", "Lip"];
-const RAIL_SETUP_TAKEOFF_SWITCH_OPTIONS = ["Lip", "Tails"];
-const RAIL_TRICK_SPIN_OPTIONS = ["180", "270", "360", "450", "630", "810"];
-const RAIL_SWAP_TYPE_OPTIONS = ["Front swap", "Back swap", "Front 360 swap", "Back 360 swap"];
-const RAIL_SPIN_OUT_TYPE_OPTIONS = ["To Switch", "To Forward", "Backside", "Frontside"];
 
 
 interface TrickCallModalProps {
@@ -175,6 +176,9 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
     const [customTrick, setCustomTrick] = useState("");
     const [spinInDisabled, setSpinInDisabled] = useState(false);
 
+    const [isListening, setIsListening] = useState(false);
+    const scrollViewRef = useRef<ScrollView>(null);
+
     useEffect(() => {
         if (isVisible && currentTrick === 'Awaiting set call...') {
             setTrickType('rail');
@@ -184,8 +188,75 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
             setDefaultTrick(null);
             setCustomTrick("");
             setOpenSections(['setup', 'trick']);
+            setIsListening(false);
+        } else {
+            // Stop listening if modal closes
+            ExpoSpeechRecognitionModule.stop();
+            setIsListening(false);
         }
     }, [isVisible]);
+
+
+    // --- VOICE HANDLERS  ---
+
+    const handleVoiceToggle = async () => {
+        if (isListening) {
+            ExpoSpeechRecognitionModule.stop();
+            setIsListening(false);
+        } else {
+            const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+            if (!permissions.granted) {
+                Alert.alert("Permission Required", "Please enable microphone permissions to use voice commands.");
+                return;
+            }
+            // Start the recognizer
+            ExpoSpeechRecognitionModule.start({
+                lang: "en-US",
+                interimResults: true,
+                maxAlternatives: 1,
+                iosCategory: {
+                    category: "record",
+                    categoryOptions: ["allowBluetooth", "allowBluetoothA2DP"],
+                    mode: "measurement",
+                },
+                contextualStrings: allTrickTerms,
+            });
+            setIsListening(true);
+            setOpenSections(['custom']);
+
+            scrollToBottom();
+        }
+    };
+    const scrollToBottom = () => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+    };
+
+
+    useSpeechRecognitionEvent("result", (event) => {
+        const text = event.results[0]?.transcript;
+        if (text) {
+            setCustomTrick(text);
+            setMode('custom');
+
+            const parsedTrick = parseVoiceTrick(text);
+
+            if (parsedTrick && typeof parsedTrick === 'string') {
+                // Set the parsed result as custom trick
+                setCustomTrick(parsedTrick);
+                setMode('custom');
+            }
+
+        }
+    });
+
+    useSpeechRecognitionEvent("end", () => {
+        setIsListening(false);
+    });
+
+
+
+
+
 
     useEffect(() => {
         if (railTrick.stance === 'Switch') {
@@ -359,11 +430,31 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                     </TouchableOpacity>
 
                     <ThemedText style={modalStyles.title}>Call a Trick</ThemedText>
+                    {/* --- VOICE BUTTON --- */}
+                    <View style={revisedStyles.voiceContainer}>
+                        <TouchableOpacity
+                            style={[
+                                revisedStyles.voiceButton,
+                                isListening && revisedStyles.voiceButtonActive
+                            ]}
+                            onPress={handleVoiceToggle}
+                        >
+                            <FontAwesome
+                                name={isListening ? "microphone-slash" : "microphone"}
+                                size={20}
+                                color="#FFF"
+                            />
+                            <Text style={revisedStyles.voiceButtonText}>
+                                {isListening ? "Stop Listening" : "Say Trick"}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
                     {/* --- TRICK TYPE SLIDER --- */}
                     <TrickTypeSlider selectedType={trickType} onSelect={handleTrickTypeChange} />
 
-                    <ScrollView style={modalStyles.listContainer} contentContainerStyle={modalStyles.listContentContainer}>
+                    <ScrollView ref={scrollViewRef} style={modalStyles.listContainer} contentContainerStyle={modalStyles.listContentContainer}>
+
 
                         {/* --- DEFAULT TRICKS --- */}
                         <CollapsibleSection
@@ -585,6 +676,35 @@ const modalStyles = StyleSheet.create({
 });
 
 const revisedStyles = StyleSheet.create({
+
+    voiceContainer: {
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    voiceButton: {
+        flexDirection: 'row',
+        backgroundColor: Theme.primary, // Or a distinct color like Red for recording
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 25,
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 3,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    voiceButtonActive: {
+        backgroundColor: '#FF4444', // Red when listening
+    },
+    voiceButtonText: {
+        color: '#FFF',
+        fontWeight: '600',
+        marginLeft: 10,
+        fontSize: 16,
+    },
     // --- SLIDER STYLES ---
     sliderContainer: {
         flexDirection: 'row',

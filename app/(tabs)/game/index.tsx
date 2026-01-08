@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // --- Imports from refactored files ---
 import LeaderboardModal from '@/components/LeaderboardModal';
+import OnboardingModal from "@/components/OnboardingModal";
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 
 // --- INTERFACES  ---
@@ -58,6 +59,7 @@ const DesignButton: React.FC<DesignButtonProps> = ({ title, description, onPress
 
 export default function ChoseGameModeScreen() {
     const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
+    const [onboardingModalVisible, setOnboardingModalVisible] = useState(true);
     const [tab, setTab] = useState<'allTime' | 'monthly'>('allTime');
 
     // Use the custom hook to manage leaderboard state and fetching logic
@@ -166,6 +168,10 @@ export default function ChoseGameModeScreen() {
                 error={error}
                 tab={tab}
                 onTabChange={handleTabChange}
+            />
+            <OnboardingModal
+                isVisible={onboardingModalVisible}
+                onClose={() => setOnboardingModalVisible(false)}
             />
 
         </ImageBackground>

@@ -5,16 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f78c3035-1ea8-476b-85a2-70a06c9a7497" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(public)/signup.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(public)/signup.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.json" beforeDir="false" afterPath="$PROJECT_DIR$/app.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/(tabs)/game/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/game/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/game/trickGenerator.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/game/trickGenerator.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/(tabs)/profile/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/profile/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/(tabs)/profile/recentGames.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/profile/recentGames.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/_layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/components/UserSearchModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/UserSearchModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/auth/AuthContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/auth/AuthContext.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/constants/tricks.ts" beforeDir="false" afterPath="$PROJECT_DIR$/constants/tricks.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

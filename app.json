@@ -49,7 +49,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow S.K.I. to use your location to track game distance."
+          "locationWhenInUsePermission": "Allow Laps to use your location to track game distance."
         }
       ],
       "expo-router",
@@ -78,6 +78,14 @@
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": false
         }
+      ],
+      "expo-video",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Laps to access the microphone",
+          "speechRecognitionPermission": "Allow Laps to securely recognize user speech"
+        }
       ]
     ],
     "experiments": {
@@ -89,6 +97,6 @@
       "eas": {
         "projectId": "1bd3a793-f5d7-4f45-b7ba-fe43de60ddef"
       }
-    },
+    }
   }
 }

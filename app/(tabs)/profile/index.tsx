@@ -10,8 +10,8 @@ import { router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Image, ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SvgUri } from 'react-native-svg';
 import { gameSyncService } from '../../services/GameSyncService';
-
 
 
 interface UserProfile {
@@ -103,6 +103,10 @@ export default function ProfileScreen() {
   const handleSaveUsername = async () => {
     if (!profileData || newUsername.trim() === '' || newUsername === profileData.username) {
       setIsEditingUsername(false); // Exit editing if nothing changed or it's empty
+      return;
+    }
+    if (newUsername.length < 3 || newUsername.length > 20) {
+      alert('Username must be between 3 and 20 characters.');
       return;
     }
 
@@ -215,8 +219,13 @@ export default function ProfileScreen() {
           {/* Profile Header Block */}
           <View style={styles.profileHeaderBlock}>
             {/* Avatar */}
-            <Image
-              source={require('@/assets/images/avatar.png')}
+            {/* <Image source={{ uri: `https://api.dicebear.com/9.x/open-peeps/svg?seed=${profileData?.username}&maskProbability=0&skinColor=694d3d,ae5d29,d08b5b,edb98a,ffdbb4,transparent` }} style={styles.avatar}> */}
+
+            {/* </Image> */}
+            <SvgUri
+              width="90"
+              height="90"
+              uri={`https://api.dicebear.com/9.x/open-peeps/svg?seed=test1&maskProbability=0&skinColor=694d3d,ae5d29,d08b5b,edb98a,ffdbb4,transparent`}
               style={styles.avatar}
             />
             {isEditingUsername ? (
@@ -379,12 +388,12 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   avatar: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
     borderRadius: 45,
     borderWidth: 3,
     borderColor: Theme.cardBackground,
-    marginBottom: 8,
+    marginBottom: 8
   },
   username: {
     fontSize: 22,
