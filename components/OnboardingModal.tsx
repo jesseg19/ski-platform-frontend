@@ -45,7 +45,6 @@ const OnboardingVideo = ({ source, thumbnail, isActive, isPreload }: VideoProps)
                 player={player}
                 style={styles.video}
                 contentFit="contain"
-                allowsFullscreen={false}
             />
         </View>
     );

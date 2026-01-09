@@ -1,5 +1,6 @@
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
+import OnboardingModal from "@/components/OnboardingModal";
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import UserSearchModal from '@/components/UserSearchModal';
@@ -76,6 +77,7 @@ export default function ProfileScreen() {
 
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [newUsername, setNewUsername] = React.useState('');
+  const [onboardingModalVisible, setOnboardingModalVisible] = React.useState(false);
   const { challengeCount, isLoading } = useChallengeCount();
 
   async function getProfileData() {
@@ -100,6 +102,7 @@ export default function ProfileScreen() {
       setIsEditingUsername(true);
     }
   };
+
 
   const handleSaveUsername = async () => {
     if (!profileData || newUsername.trim() === '' || newUsername === profileData.username) {
@@ -202,21 +205,31 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.mainContainer}>
         {/* Header with Logo and Action Icons */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile/notifications')}
-            style={styles.iconButton}
-          >
-            <Feather name="bell" size={24} color={Theme.darkText} />
+          <View style={{ flexDirection: 'row', gap: 15 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/profile/notifications')}
+              style={styles.iconButton}
+            >
+              <Feather name="bell" size={24} color={Theme.darkText} />
 
-            {/* The Notification Badge */}
-            {challengeCount > 0 && (
-              <View style={styles.badge}>
-                <ThemedText style={styles.badgeText}>
-                  {challengeCount > 9 ? '9+' : challengeCount}
-                </ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
+              {/* The Notification Badge */}
+              {challengeCount > 0 && (
+                <View style={styles.badge}>
+                  <ThemedText style={styles.badgeText}>
+                    {challengeCount > 9 ? '9+' : challengeCount}
+                  </ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setOnboardingModalVisible(true)} style={styles.iconButton}>
+              {/* Conditional icon: 'check' (save) when editing, 'edit' otherwise */}
+              <Feather
+                name={"help-circle"}
+                size={24}
+                color={Theme.darkText}
+              />
+            </TouchableOpacity>
+          </View>
 
           {/* S.K.I. Logo */}
           {/* <View style={styles.logoContainer}>
@@ -342,6 +355,10 @@ export default function ProfileScreen() {
           onClose={() => setSearchModalVisible(false)}
         />
       </SafeAreaView>
+      <OnboardingModal
+        isVisible={onboardingModalVisible}
+        onClose={() => setOnboardingModalVisible(false)}
+      />
 
 
     </ImageBackground>
