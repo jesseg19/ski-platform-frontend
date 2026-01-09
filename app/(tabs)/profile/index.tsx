@@ -7,10 +7,10 @@ import { Theme } from '@/constants/theme';
 import { useChallengeCount } from '@/hooks/useChallengeCount';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect } from 'react';
-import { Image, ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SvgUri } from 'react-native-svg';
+import { SvgCss } from 'react-native-svg/css';
 import { gameSyncService } from '../../services/GameSyncService';
 
 
@@ -18,6 +18,7 @@ interface UserProfile {
   id: number;
   username: string;
   eloRating: string;
+  profileImgSvg: string;
   bio: string;
 
   //computed
@@ -143,6 +144,42 @@ export default function ProfileScreen() {
     }
   };
 
+  const saveAvatar = (svgCode: string) => {
+    // Save avatar SVG code to backend
+    if (svgCode && profileData && profileData.profileImgSvg !== svgCode) {
+      api.put('/api/profiles/update-img', { svgString: svgCode })
+        .then(() => {
+          console.log('Avatar updated successfully');
+        })
+        .catch((error) => {
+          console.error('Failed to update avatar:', error);
+        });
+    }
+  };
+
+  const Avatar = ({ username }: { username: string }) => {
+    const [svgCode, setSvgCode] = useState<string | null>(null);
+
+    // 1. Fetch the SVG
+    useEffect(() => {
+      fetch(`https://api.dicebear.com/9.x/open-peeps/svg?seed=${username}&maskProbability=0&scale=120`)
+        .then(res => res.ok ? res.text() : Promise.reject())
+        .then(text => setSvgCode(text))
+        .catch(err => console.error("Avatar fetch error:", err));
+    }, [username]);
+    saveAvatar(svgCode || '');
+
+
+    if (!svgCode) {
+      return <View style={[styles.avatar, { backgroundColor: '#eee' }]} />;
+    }
+
+    return (
+      <View style={[styles.avatar, { overflow: 'hidden' }]}>
+        <SvgCss xml={svgCode} width="100%" height="100%" />
+      </View>
+    );
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -219,15 +256,8 @@ export default function ProfileScreen() {
           {/* Profile Header Block */}
           <View style={styles.profileHeaderBlock}>
             {/* Avatar */}
-            {/* <Image source={{ uri: `https://api.dicebear.com/9.x/open-peeps/svg?seed=${profileData?.username}&maskProbability=0&skinColor=694d3d,ae5d29,d08b5b,edb98a,ffdbb4,transparent` }} style={styles.avatar}> */}
+            <Avatar username={profileData?.username || 'Guest'} />
 
-            {/* </Image> */}
-            <SvgUri
-              width="90"
-              height="90"
-              uri={`https://api.dicebear.com/9.x/open-peeps/svg?seed=test1&maskProbability=0&skinColor=694d3d,ae5d29,d08b5b,edb98a,ffdbb4,transparent`}
-              style={styles.avatar}
-            />
             {isEditingUsername ? (
               <TextInput
                 style={[styles.username, styles.usernameInput]}
@@ -268,10 +298,10 @@ export default function ProfileScreen() {
           <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { router.push('/(tabs)/profile/recentGames') }}>
             <View style={styles.recentTrickRow}>
               {/* Player Avatar */}
-              <Image
-                source={require('@/assets/images/avatar.png')}
+              {/* <SvgCss
+                xml={profileData?.profileImgSvg || ''}
                 style={styles.recentTrickAvatar}
-              />
+              /> */}
               <View style={styles.recentTrickDetails}>
                 <ThemedText style={styles.recentTrickOpponent}>{profileData?.recentGame?.opponentUsername}</ThemedText>
               </View>
@@ -385,15 +415,17 @@ const styles = StyleSheet.create({
   // --- Profile Header Block ---
   profileHeaderBlock: {
     alignItems: 'center',
-    paddingVertical: 0,
+    width: '100%',
+    height: 'auto',
   },
   avatar: {
-    width: 100,
-    height: 100,
+    width: 90,
+    height: 90,
     borderRadius: 45,
     borderWidth: 3,
     borderColor: Theme.cardBackground,
-    marginBottom: 8
+    marginBottom: 8,
+    backgroundColor: Theme.cardBackground,
   },
   username: {
     fontSize: 22,

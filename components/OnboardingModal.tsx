@@ -1,35 +1,53 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
 const { width, height } = Dimensions.get('window');
 
+interface VideoProps {
+    source: any;
+    thumbnail: any; // Add a static image for each video
+    isActive: boolean;
+    isPreload: boolean; // Is it the next page?
+}
+
 // Sub-component to manage individual video players
-const OnboardingVideo = ({ source, isActive }: { source: any, isActive: boolean }) => {
-    const player = useVideoPlayer(source, (player) => {
+const OnboardingVideo = ({ source, thumbnail, isActive, isPreload }: VideoProps) => {
+    // Only create the player if the page is active or the very next one
+    const shouldLoad = isActive || isPreload;
+    const player = useVideoPlayer(shouldLoad ? source : null, (player) => {
         player.loop = true;
         player.muted = true;
-        if (isActive) {
-            player.play();
-        }
+        if (isActive) player.play();
     });
 
     useEffect(() => {
-        if (isActive) {
-            player.play();
-        } else {
-            player.pause();
+        if (player) {
+            isActive ? player.play() : player.pause();
         }
     }, [isActive, player]);
 
+    if (!shouldLoad) {
+        return <Image source={thumbnail} style={styles.video} resizeMode="cover" />;
+    }
+
     return (
-        <VideoView
-            player={player}
-            style={styles.video}
-        // contentFit="contain"
-        />
+        <View style={styles.videoContainer}>
+            {/* Show thumbnail while video buffers */}
+            <Image
+                source={thumbnail}
+                style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+                resizeMode="cover"
+            />
+            <VideoView
+                player={player}
+                style={styles.video}
+                contentFit="contain"
+                allowsFullscreen={false}
+            />
+        </View>
     );
 };
 
@@ -88,8 +106,7 @@ const OnboardingModal = ({ isVisible, onClose }: Props) => {
                             <View key={index} style={styles.page}>
                                 <OnboardingVideo
                                     source={page.videoSource}
-                                    isActive={currentPage === index}
-                                />
+                                    isActive={currentPage === index} thumbnail={undefined} isPreload={false} />
                                 <Text style={styles.title}>{page.title}</Text>
                                 <Text style={styles.description}>{page.description}</Text>
                             </View>
@@ -131,6 +148,7 @@ const styles = StyleSheet.create({
     pager: { flex: 1 },
     page: { alignItems: 'center', padding: 24, paddingTop: 10 },
     video: { width: '100%', height: height * 0.4, borderRadius: 16, marginBottom: 24, backgroundColor: '#f0f0f0' },
+    videoContainer: { width: '100%', height: height * 0.4, borderRadius: 16, marginBottom: 24, overflow: 'hidden', backgroundColor: '#f0f0f0' },
     title: { fontSize: 24, fontWeight: '800', marginBottom: 12, textAlign: 'center', color: '#1a1a1a' },
     description: { fontSize: 16, textAlign: 'center', color: '#666', lineHeight: 24 },
     footer: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
