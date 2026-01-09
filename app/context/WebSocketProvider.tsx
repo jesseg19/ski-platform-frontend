@@ -99,7 +99,7 @@ interface ChallengeProviderProps {
 }
 
 export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
-    const { user, tokenRefreshed } = useAuth();
+    const { user, tokenRefreshed, signOut } = useAuth();
     const router = useRouter();
 
     const [isConnected, setIsConnected] = useState(false);
@@ -117,70 +117,53 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
 
     useEffect(() => {
         if (!user) {
-            if (clientRef.current?.active) {
-                clientRef.current.deactivate();
-            }
+            if (clientRef.current?.active) clientRef.current.deactivate();
             setIsConnected(false);
             return;
         }
 
+        let isMounted = true;
+
         const connect = async () => {
-            // Disconnect existing connection if any
+            // 1. Get the fresh token first
+            const token = await SecureStore.getItemAsync('userAccessToken');
+            if (!token || !isMounted) return;
+
+            // 2. Close old connection
             if (clientRef.current?.active) {
-                console.log('Disconnecting existing WebSocket connection...');
                 clientRef.current.deactivate();
             }
 
-            let token = await SecureStore.getItemAsync('userAccessToken');
-            if (!token) {
-                console.warn('No user token found, cannot connect WebSocket.');
-                return;
-            }
-
-            console.log('Connecting to WebSocket...');
-
-            const socketUrlWithToken = `${SOCKET_URL}?token=${encodeURIComponent(token)}`;
-
+            // 3. Create new client with the token we just grabbed
             const client = new Client({
-                webSocketFactory: () => new SockJS(socketUrlWithToken),
+                // Note: No 'async' here!
+                webSocketFactory: () => new SockJS(`${SOCKET_URL}?token=${encodeURIComponent(token)}`),
                 reconnectDelay: 5000,
-                heartbeatIncoming: 10000,
-                heartbeatOutgoing: 10000,
-                debug: async (str) => {
-                    console.log('STOMP Debug:', str);
-                },
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000,
                 onConnect: () => {
+                    if (!isMounted) return;
                     console.log('WebSocket Connected');
                     setIsConnected(true);
 
                     client.subscribe(`/user/queue/challenges`, (message) => {
-                        try {
-                            const challengeDto: ChallengeDto = JSON.parse(message.body);
-                            handleChallengeUpdate(challengeDto);
-                        } catch (e) {
-                            console.error('Failed to parse challenge update:', e);
-                        }
+                        handleChallengeUpdate(JSON.parse(message.body));
                     });
                 },
-                onDisconnect: () => {
-                    setIsConnected(false);
-                    console.log('WebSocket Disconnected');
-                },
-                onStompError: (frame) => {
-                    console.error('Broker error:', frame);
-                    console.error('Error message:', frame.headers?.message);
-
-
-                    // If authentication error, try to reconnect with fresh token
-                    if (frame.headers?.message?.includes('Authentication') ||
-                        frame.headers?.message?.includes('401') ||
-                        frame.headers?.message?.includes('403')) {
-                        console.log('Authentication error detected, will reconnect with new token');
+                onDisconnect: () => setIsConnected(false),
+                onStompError: async (frame) => {
+                    const error = frame.headers?.message || '';
+                    if (error.includes('401') || error.includes('403') || error.includes('Authentication')) {
+                        client.deactivate();
+                        try {
+                            // This triggers your Axios refresh logic
+                            await api.get('/api/auth/validate-session');
+                            // tokenRefreshed incrementing in AuthContext will re-trigger this useEffect
+                        } catch (e) {
+                            signOut();
+                        }
                     }
-                },
-                onWebSocketError: (event) => {
-                    console.error('WebSocket error:', event);
-                },
+                }
             });
 
             client.activate();
@@ -190,9 +173,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         connect();
 
         return () => {
-            if (clientRef.current?.active) {
+            isMounted = false;
+            if (clientRef.current) {
                 clientRef.current.deactivate();
-                console.log('WebSocket Disconnected.');
             }
         };
     }, [user, tokenRefreshed]);

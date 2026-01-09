@@ -8,9 +8,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// --- Imports from refactored files ---
 import LeaderboardModal from '@/components/LeaderboardModal';
+import OnboardingModal from "@/components/OnboardingModal";
 import { useLeaderboard } from '@/hooks/useLeaderboard';
+import { OnboardingService } from "../../services/checkOnboardingStatus";
+
 
 // --- INTERFACES  ---
 interface DesignButtonProps {
@@ -56,9 +58,32 @@ const DesignButton: React.FC<DesignButtonProps> = ({ title, description, onPress
     );
 };
 
+function setOnboardingAsSeen() {
+    api.put('/api/profiles/update_has_seen_onboarding')
+        .then(() => {
+            console.log("Onboarding marked as seen");
+        })
+        .catch((e) => {
+            console.error("Error marking onboarding as seen:", e);
+        });
+}
+
+async function getData(): Promise<boolean> {
+    try {
+        const response = await api.get('api/profiles/has_seen_onboarding');
+        return response.data.hasSeenOnboarding;
+    } catch (e) {
+        console.error("Error checking onboarding status:", e);
+        return false;
+    }
+}
+
 export default function ChoseGameModeScreen() {
     const [leaderboardModalVisible, setLeaderboardModalVisible] = useState(false);
+    const [onboardingModalVisible, setOnboardingModalVisible] = useState(false);
+    const [isReady, setIsReady] = useState(false);
     const [tab, setTab] = useState<'allTime' | 'monthly'>('allTime');
+
 
     // Use the custom hook to manage leaderboard state and fetching logic
     const {
@@ -69,6 +94,9 @@ export default function ChoseGameModeScreen() {
         fetchAllTimeLeaderboard,
         fetchMonthlyLeaderboard,
     } = useLeaderboard();
+
+
+
 
     // Logic to fetch data ONLY when the modal opens and the data is not already cached
     useEffect(() => {
@@ -115,6 +143,26 @@ export default function ChoseGameModeScreen() {
             router.push('/(tabs)/game/1v1');
         }
     };
+
+    useEffect(() => {
+        const loadStatus = async () => {
+            const hasSeen = await OnboardingService.checkHasSeen();
+            if (!hasSeen) {
+                setOnboardingModalVisible(true);
+            }
+            setIsReady(true);
+        };
+        loadStatus();
+    }, []);
+
+    const handleClose = async () => {
+        setOnboardingModalVisible(false);
+        await OnboardingService.markAsSeen();
+    };
+
+    // Prevent rendering the UI until we know if the modal should show
+    if (!isReady) return null;
+
 
     return (
         <ImageBackground
@@ -166,6 +214,10 @@ export default function ChoseGameModeScreen() {
                 error={error}
                 tab={tab}
                 onTabChange={handleTabChange}
+            />
+            <OnboardingModal
+                isVisible={onboardingModalVisible}
+                onClose={handleClose}
             />
 
         </ImageBackground>

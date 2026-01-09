@@ -4,6 +4,7 @@ import { Theme } from '@/constants/theme';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import axios from 'axios';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Asset } from 'expo-asset';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -67,6 +68,17 @@ const PasswordInput = ({ value, onChangeText, placeholder, secureTextEntry, togg
     </TouchableOpacity>
   </View>
 );
+
+const preloadAssets = async () => {
+  const videoAssets = [
+    require('../../assets/how-to-challenge.mp4'),
+    require('../../assets/how-to-call-trick.mp4'),
+    require('../../assets/how-to-add-letter-without-trick.mp4'),
+  ];
+
+  // This downloads them to the device cache in the background
+  await Promise.all(videoAssets.map(res => Asset.fromModule(res).downloadAsync()));
+};
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
@@ -252,6 +264,7 @@ export default function AuthScreen() {
 
 
   const handleAuth = async () => {
+    preloadAssets();
     setValidationError('');
 
     if (isLogin) {
@@ -447,6 +460,7 @@ export default function AuthScreen() {
         </Text>
       </TouchableOpacity>
     </View>
+
   );
 
   return (

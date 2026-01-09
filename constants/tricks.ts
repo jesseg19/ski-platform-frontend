@@ -121,9 +121,11 @@ export const JUMP_BASES: Record<number, BaseJump[]> = {
 
 export const GRAB_LIST = [
     { name: "Safety", difficulty: 2 },
+    { name: "Lead Safety", difficulty: 10 },
     { name: "Mute", difficulty: 4 },
     { name: "Japan", difficulty: 5 },
     { name: "Blunt", difficulty: 8 },
+    { name: "Lead Blunt", difficulty: 17 },
     { name: "Stale", difficulty: 8 },
     { name: "Nose", difficulty: 10 },
     { name: "Critical", difficulty: 12 },
@@ -133,7 +135,6 @@ export const GRAB_LIST = [
     { name: "Esco", difficulty: 15 },
     { name: "Lead Mute", difficulty: 15 },
     { name: "Guitar", difficulty: 20 },
-    { name: "Screamin' Seamen", difficulty: 25 },
 ];
 
 
@@ -206,3 +207,51 @@ export const RAIL_MODIFIERS = {
         { name: "630 Out", difficulty: 65 },
     ]
 };
+
+//game of S.K.I. constants
+
+// --- JUMP TRICK OPTIONS  ---
+export const JUMP_DEFAULT_TRICKS = ["Backflip", "Frontflip", "Zero Spin", "Underflip"];
+export const JUMP_TAKE_OFF_VARIATIONS = ["Nose Butter", "Tail Butter", "Take Off Holding Grab", "Blender", "Carving", "Lazy boy", "Tokyo Drift"];
+export const JUMP_LANDING_VARIATIONS = ["Land Holding Grab"];
+export const JUMP_STANCE_OPTIONS = ["Forward", "Switch"];
+export const JUMP_DIRECTION_OPTIONS = ["Left", "Right"];
+export const JUMP_NUMBER_OF_FLIPS_OPTIONS = ["Single", "Double"];
+export const JUMP_AXIS_OPTIONS = ["Bio", "Rodeo", "Cork", "Misty", "On Axis"];
+export const JUMP_DEGREE_OF_ROTATION_OPTIONS = ["180", "360", "540", "720", "900", "1080", "1260", "1440"];
+export const JUMP_GRAB_OPTIONS = ["Mute", "Safety", "Blunt", "Nose", "Stale", "Japan", "Critical", "Octo", "Screamin' Seamen", "Esco", "Seatbelt", "Dub Japan", "Truck", "Bow and Arrow"];
+
+// --- RAIL TRICK OPTIONS ---
+export const RAIL_DEFAULT_TRICKS = ["Kfed", "Ellen", "Britney", "Ray-fed"];
+export const RAIL_TAKE_OFF_VARIATIONS = ["Nose Butter", "Tail Butter", "Take Off Holding Grab", "Blender", "Tokyo Drift"];
+export const RAIL_LANDING_VARIATIONS = ["Land Holding Grab"];
+export const RAIL_SETUP_STANCE_OPTIONS = JUMP_STANCE_OPTIONS;
+export const RAIL_SETUP_DIRECTION_OPTIONS = ["Left", "Right", "Left foot", "Right foot"];
+export const RAIL_SETUP_TAKEOFF_FORWARD_OPTIONS = ["Regular", "Lip"];
+export const RAIL_SETUP_TAKEOFF_SWITCH_OPTIONS = ["Lip", "Tails"];
+export const RAIL_TRICK_SPIN_OPTIONS = ["180", "270", "360", "450", "630", "810"];
+export const RAIL_SWAP_TYPE_OPTIONS = ["Front swap", "Back swap", "Front 360 swap", "Back 360 swap"];
+export const RAIL_SPIN_OUT_TYPE_OPTIONS = ["To Switch", "To Forward", "Backside", "Frontside"];
+
+export const allTrickTerms = [
+    ...JUMP_AXIS_OPTIONS,
+    ...JUMP_DEFAULT_TRICKS,
+    ...JUMP_DEGREE_OF_ROTATION_OPTIONS,
+    ...JUMP_DIRECTION_OPTIONS,
+    ...JUMP_GRAB_OPTIONS,
+    ...JUMP_LANDING_VARIATIONS,
+    ...JUMP_NUMBER_OF_FLIPS_OPTIONS,
+    ...JUMP_STANCE_OPTIONS,
+    ...JUMP_TAKE_OFF_VARIATIONS,
+    ...RAIL_DEFAULT_TRICKS,
+    ...RAIL_LANDING_VARIATIONS,
+    ...RAIL_SETUP_DIRECTION_OPTIONS,
+    ...RAIL_SETUP_STANCE_OPTIONS,
+    ...RAIL_SETUP_TAKEOFF_FORWARD_OPTIONS,
+    ...RAIL_SETUP_TAKEOFF_SWITCH_OPTIONS,
+    ...RAIL_SPIN_OUT_TYPE_OPTIONS,
+    ...RAIL_SWAP_TYPE_OPTIONS,
+    ...RAIL_TAKE_OFF_VARIATIONS,
+    ...RAIL_TRICK_SPIN_OPTIONS,
+];
+

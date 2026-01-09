@@ -1,5 +1,6 @@
 import { useAuth } from '@/auth/AuthContext';
 import api from '@/auth/axios';
+import OnboardingModal from "@/components/OnboardingModal";
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import UserSearchModal from '@/components/UserSearchModal';
@@ -7,17 +8,18 @@ import { Theme } from '@/constants/theme';
 import { useChallengeCount } from '@/hooks/useChallengeCount';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect } from 'react';
-import { Image, ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SvgCss } from 'react-native-svg/css';
 import { gameSyncService } from '../../services/GameSyncService';
-
 
 
 interface UserProfile {
   id: number;
   username: string;
   eloRating: string;
+  profileImgSvg: string;
   bio: string;
 
   //computed
@@ -75,6 +77,7 @@ export default function ProfileScreen() {
 
   const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const [newUsername, setNewUsername] = React.useState('');
+  const [onboardingModalVisible, setOnboardingModalVisible] = React.useState(false);
   const { challengeCount, isLoading } = useChallengeCount();
 
   async function getProfileData() {
@@ -100,9 +103,14 @@ export default function ProfileScreen() {
     }
   };
 
+
   const handleSaveUsername = async () => {
     if (!profileData || newUsername.trim() === '' || newUsername === profileData.username) {
       setIsEditingUsername(false); // Exit editing if nothing changed or it's empty
+      return;
+    }
+    if (newUsername.length < 3 || newUsername.length > 20) {
+      alert('Username must be between 3 and 20 characters.');
       return;
     }
 
@@ -139,6 +147,42 @@ export default function ProfileScreen() {
     }
   };
 
+  const saveAvatar = (svgCode: string) => {
+    // Save avatar SVG code to backend
+    if (svgCode && profileData && profileData.profileImgSvg !== svgCode) {
+      api.put('/api/profiles/update-img', { svgString: svgCode })
+        .then(() => {
+          console.log('Avatar updated successfully');
+        })
+        .catch((error) => {
+          console.error('Failed to update avatar:', error);
+        });
+    }
+  };
+
+  const Avatar = ({ username }: { username: string }) => {
+    const [svgCode, setSvgCode] = useState<string | null>(null);
+
+    // 1. Fetch the SVG
+    useEffect(() => {
+      fetch(`https://api.dicebear.com/9.x/open-peeps/svg?seed=${username}&maskProbability=0&scale=120`)
+        .then(res => res.ok ? res.text() : Promise.reject())
+        .then(text => setSvgCode(text))
+        .catch(err => console.error("Avatar fetch error:", err));
+    }, [username]);
+    saveAvatar(svgCode || '');
+
+
+    if (!svgCode) {
+      return <View style={[styles.avatar, { backgroundColor: '#eee' }]} />;
+    }
+
+    return (
+      <View style={[styles.avatar, { overflow: 'hidden' }]}>
+        <SvgCss xml={svgCode} width="100%" height="100%" />
+      </View>
+    );
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -161,21 +205,31 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.mainContainer}>
         {/* Header with Logo and Action Icons */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile/notifications')}
-            style={styles.iconButton}
-          >
-            <Feather name="bell" size={24} color={Theme.darkText} />
+          <View style={{ flexDirection: 'row', gap: 15 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/profile/notifications')}
+              style={styles.iconButton}
+            >
+              <Feather name="bell" size={24} color={Theme.darkText} />
 
-            {/* The Notification Badge */}
-            {challengeCount > 0 && (
-              <View style={styles.badge}>
-                <ThemedText style={styles.badgeText}>
-                  {challengeCount > 9 ? '9+' : challengeCount}
-                </ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
+              {/* The Notification Badge */}
+              {challengeCount > 0 && (
+                <View style={styles.badge}>
+                  <ThemedText style={styles.badgeText}>
+                    {challengeCount > 9 ? '9+' : challengeCount}
+                  </ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setOnboardingModalVisible(true)} style={styles.iconButton}>
+              {/* Conditional icon: 'check' (save) when editing, 'edit' otherwise */}
+              <Feather
+                name={"help-circle"}
+                size={24}
+                color={Theme.darkText}
+              />
+            </TouchableOpacity>
+          </View>
 
           {/* S.K.I. Logo */}
           {/* <View style={styles.logoContainer}>
@@ -215,10 +269,8 @@ export default function ProfileScreen() {
           {/* Profile Header Block */}
           <View style={styles.profileHeaderBlock}>
             {/* Avatar */}
-            <Image
-              source={require('@/assets/images/avatar.png')}
-              style={styles.avatar}
-            />
+            <Avatar username={profileData?.username || 'Guest'} />
+
             {isEditingUsername ? (
               <TextInput
                 style={[styles.username, styles.usernameInput]}
@@ -259,10 +311,10 @@ export default function ProfileScreen() {
           <ProfileCard title="Recent Game" actionText="View All" onActionPress={() => { router.push('/(tabs)/profile/recentGames') }}>
             <View style={styles.recentTrickRow}>
               {/* Player Avatar */}
-              <Image
-                source={require('@/assets/images/avatar.png')}
+              {/* <SvgCss
+                xml={profileData?.profileImgSvg || ''}
                 style={styles.recentTrickAvatar}
-              />
+              /> */}
               <View style={styles.recentTrickDetails}>
                 <ThemedText style={styles.recentTrickOpponent}>{profileData?.recentGame?.opponentUsername}</ThemedText>
               </View>
@@ -303,6 +355,10 @@ export default function ProfileScreen() {
           onClose={() => setSearchModalVisible(false)}
         />
       </SafeAreaView>
+      <OnboardingModal
+        isVisible={onboardingModalVisible}
+        onClose={() => setOnboardingModalVisible(false)}
+      />
 
 
     </ImageBackground>
@@ -376,7 +432,8 @@ const styles = StyleSheet.create({
   // --- Profile Header Block ---
   profileHeaderBlock: {
     alignItems: 'center',
-    paddingVertical: 0,
+    width: '100%',
+    height: 'auto',
   },
   avatar: {
     width: 90,
@@ -385,6 +442,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: Theme.cardBackground,
     marginBottom: 8,
+    backgroundColor: Theme.cardBackground,
   },
   username: {
     fontSize: 22,
