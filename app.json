@@ -2,7 +2,7 @@
   "expo": {
     "name": "Laps",
     "slug": "ski-platform",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "skiplatform",
@@ -14,6 +14,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs your location to verify you are moving during the game of S.K.I.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to display and upload images.",
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone to enable speech recognition features.",
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSExceptionDomains": {
@@ -54,6 +56,18 @@
       ],
       "expo-router",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 33,
+            "extraMavenRepos": [
+              "../../node_modules/@notifee/react-native/android/libs"
+            ]
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/logo.png",
@@ -86,7 +100,7 @@
           "microphonePermission": "Allow Laps to access the microphone",
           "speechRecognitionPermission": "Allow Laps to securely recognize user speech"
         }
-      ]
+      ],
     ],
     "experiments": {
       "typedRoutes": true,

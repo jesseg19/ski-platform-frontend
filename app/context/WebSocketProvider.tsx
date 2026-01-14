@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { Alert } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
-import api from '@/auth/axios';
+import api, { setTokenRefreshCallback } from '@/auth/axios';
 import * as SecureStore from 'expo-secure-store';
 import SockJS from 'sockjs-client';
 
@@ -70,6 +70,11 @@ interface GameStatusMessage {
     timestamp: number;
 }
 
+interface SyncRequestMessage {
+    gameId: number;
+    requester: string;
+}
+
 interface ChallengeContextValue {
     isConnected: boolean;
     isSending: boolean;
@@ -89,6 +94,8 @@ interface ChallengeContextValue {
     lastTryMessage: LastTryMessage | null;
     publishLetterUpdate: (gameId: number, userId: number, username: string, newLetterCount: number) => void;
     publishGameStatus: (gameId: number, status: string) => void;
+    syncRequestMessage: SyncRequestMessage | null;
+    requestGameState: (gameId: number) => void;
 
 }
 
@@ -99,7 +106,7 @@ interface ChallengeProviderProps {
 }
 
 export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
-    const { user, tokenRefreshed, signOut } = useAuth();
+    const { user, tokenRefreshed, signOut, refreshAccessToken } = useAuth();
     const router = useRouter();
 
     const [isConnected, setIsConnected] = useState(false);
@@ -112,6 +119,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
     const [letterUpdateMessage, setLetterUpdateMessage] = useState<LetterUpdateMessage | null>(null);
     const [roundResolvedMessage, setRoundResolvedMessage] = useState<RoundResolvedMessage | null>(null);
     const [lastTryMessage, setLastTryMessage] = useState<LastTryMessage | null>(null);
+    const [syncRequestMessage, setSyncRequestMessage] = useState<SyncRequestMessage | null>(null);
 
     const clientRef = React.useRef<Client | null>(null);
 
@@ -154,13 +162,15 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 onStompError: async (frame) => {
                     const error = frame.headers?.message || '';
                     if (error.includes('401') || error.includes('403') || error.includes('Authentication')) {
+                        console.log('WebSocket auth error, refreshing token...');
                         client.deactivate();
+
                         try {
-                            // This triggers your Axios refresh logic
-                            await api.get('/api/auth/validate-session');
-                            // tokenRefreshed incrementing in AuthContext will re-trigger this useEffect
+                            await refreshAccessToken();
+                            // tokenRefreshed will increment, triggering reconnection
                         } catch (e) {
-                            signOut();
+                            console.error('Failed to refresh token:', e);
+                            // signOut already called in refreshAccessToken
                         }
                     }
                 }
@@ -179,6 +189,12 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             }
         };
     }, [user, tokenRefreshed]);
+
+    useEffect(() => {
+        setTokenRefreshCallback(() => {
+            console.log('Token refreshed, Websokcet will reconnect')
+        })
+    })
 
     const subscribeToGame = useCallback((gameId: number) => {
         if (!clientRef.current?.active) {
@@ -202,6 +218,8 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                     setRoundResolvedMessage(data as RoundResolvedMessage);
                 } else if ('playerOnLastTry' in data) {
                     setLastTryMessage(data as LastTryMessage);
+                } else if ('requester' in data && 'gameId' in data && !('trickDetails' in data)) {
+                    setSyncRequestMessage(data as SyncRequestMessage);
                 }
             } catch (error) {
                 console.error('Failed to parse game update:', error);
@@ -439,6 +457,16 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         setSentChallengeStatus(null);
     }, []);
 
+    const requestGameState = useCallback((gameId: number) => {
+        if (!clientRef.current?.active) return;
+
+        // Broadcast a request for the current state to everyone in the game topic
+        clientRef.current.publish({
+            destination: `/app/game/requestSync`, // Your backend should broadcast this to /topic/game/{gameId}
+            body: JSON.stringify({ gameId, requester: user?.username })
+        });
+    }, [user]);
+
     const value = useMemo(() => ({
         isConnected,
         isSending,
@@ -457,7 +485,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         letterUpdateMessage,
         roundResolvedMessage,
         lastTryMessage,
-        publishGameStatus
+        publishGameStatus,
+        syncRequestMessage,
+        requestGameState
     }), [
         isConnected,
         isSending,
@@ -476,7 +506,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         letterUpdateMessage,
         roundResolvedMessage,
         lastTryMessage,
-        publishGameStatus
+        publishGameStatus,
+        syncRequestMessage,
+        requestGameState
     ]);
 
     return (

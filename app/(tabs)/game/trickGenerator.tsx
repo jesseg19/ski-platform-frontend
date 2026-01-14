@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AppState, ImageBackground, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -8,6 +8,8 @@ import { Theme } from '@/constants/theme';
 import { GRAB_LIST, JUMP_BASES, RAIL_BASES, RAIL_MODIFIERS } from '@/constants/tricks';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { saveGeneratorSettings } from '../../services/BackgroundLogic';
+import { stopLiveNotification, updateTrickNotification } from '../../services/LiveNotificationService';
 
 // --- Custom Button Component for Difficulty Levels ---
 interface DifficultyButtonProps {
@@ -68,7 +70,7 @@ const ModeSwitch: React.FC<ModeSwitchProps> = ({ selectedMode, onSelectMode }) =
 
 
 // --- Difficulty Level Mapping  ---
-const DIFFICULTY_LEVELS = [
+export const DIFFICULTY_LEVELS = [
   { displayName: 'I', name: 'Beginner', maxDifficulty: 25, minDifficulty: 10, value: 1 },
   { displayName: 'II', name: 'Advanced', maxDifficulty: 60, minDifficulty: 15, value: 2 },
   { displayName: 'III', name: 'Expert', maxDifficulty: 100, minDifficulty: 40, value: 3 },
@@ -76,7 +78,7 @@ const DIFFICULTY_LEVELS = [
 ];
 
 
-function generateTrick(maxDifficulty: number, minDifficulty: number, selectedDifficulty: number): string {
+export function generateTrick(maxDifficulty: number, minDifficulty: number, selectedDifficulty: number): string {
   const possibleBases = JUMP_BASES[selectedDifficulty];
 
   // 1. Pick a random base from the level
@@ -113,7 +115,7 @@ function generateTrick(maxDifficulty: number, minDifficulty: number, selectedDif
 // --- RAIL TRICK LOGIC    ---
 // --- ------------------- ---
 
-function generateRailTrick(selectedLevel: number, minDifficulty: number, maxDifficulty: number): string {
+export function generateRailTrick(selectedLevel: number, minDifficulty: number, maxDifficulty: number): string {
   const possibleBases = RAIL_BASES[selectedLevel] || RAIL_BASES[1];
 
   for (let i = 0; i < 30; i++) { // Increased iterations to find complex combos
@@ -195,6 +197,28 @@ export default function TrickDiceScreen() {
   const [selectedDifficulty, setSelectedDifficulty] = useState(DIFFICULTY_LEVELS[1]);
   const [mode, setMode] = useState<Mode>('jumps');
 
+  // 1. Save Settings when they change
+  useEffect(() => {
+    saveGeneratorSettings(mode, selectedDifficulty.value);
+  }, [mode, selectedDifficulty]);
+
+  // 2. Manage Notification Lifecycle
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // App going to background? Show notification with current trick
+        await updateTrickNotification(trickText);
+      } else if (nextAppState === 'active') {
+        // App opening? Remove notification to clean up status bar
+        await stopLiveNotification();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      stopLiveNotification(); // Cleanup on unmount
+    };
+  }, [trickText]); // Re-run if trickText changes so we show the right one
   const handleGenerateTrick = useCallback(() => {
     const { maxDifficulty, minDifficulty, value: difficultyValue } = selectedDifficulty;
 

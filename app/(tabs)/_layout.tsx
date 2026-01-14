@@ -1,7 +1,12 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import notifee from '@notifee/react-native';
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 import { useAuth } from '../../auth/AuthContext';
+import { handleBackgroundEvent } from '../services/LiveNotificationService';
+
+// Register for Background (Killed/Background state)
+notifee.onBackgroundEvent(handleBackgroundEvent);
 
 
 export default function TabLayout() {
