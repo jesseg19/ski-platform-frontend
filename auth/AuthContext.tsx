@@ -19,6 +19,7 @@ interface AuthContextType {
   tokenRefreshed: number;
   updateToken: (newAccessToken: string) => void;
   updateUsername: (newUsername: string) => void;
+  refreshAccessToken: () => void
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -37,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [tokenRefreshed, setTokenRefreshed] = useState(0);
 
+  const API_BASE_URL = 'https://laps.api.jessegross.ca'
+
   const signOut = useCallback(async () => {
     await SecureStore.deleteItemAsync('userAccessToken');
     await SecureStore.deleteItemAsync('userRefreshToken');
@@ -45,6 +48,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     router.replace('/(public)/signup'); // Navigate to a public route
   }, []);
+
+  const refreshAccessToken = useCallback(async () => {
+    try {
+      const refreshToken = await SecureStore.getItemAsync('userRefreshToken');
+      if (!refreshToken) throw new Error('No refresh token');
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      });
+
+      if (!response.ok) throw new Error('Refresh failed');
+
+      const data = await response.json();
+      await SecureStore.setItemAsync('userAccessToken', data.accessToken);
+      setTokenRefreshed(prev => prev + 1);
+
+      return data.accessToken;
+    } catch (error) {
+      await signOut();
+      throw error;
+    }
+  }, [signOut]);
 
   useEffect(() => {
     // Register sign out callback for axios interceptor
@@ -133,7 +160,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const value = { signIn, signOut, isAuthenticated, isLoading, user, tokenRefreshed, updateToken, updateUsername };
+
+
+  const value = { signIn, signOut, isAuthenticated, isLoading, user, tokenRefreshed, updateToken, updateUsername, refreshAccessToken };
+
+
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,7 +1,7 @@
 import NetInfo from '@react-native-community/netinfo';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ImageBackground, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, AppState, ImageBackground, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 import { CustomButton } from '@/components/CustomButton';
 import { GameChallengeModal } from '@/components/GameChallengeModal';
@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../../auth/AuthContext';
 import { useGame } from '../../context/GameContext';
 import { useChallenge } from '../../context/WebSocketProvider';
+import { stopLiveNotification, updateGameNotification } from '../../services/LiveNotificationService';
 
 import api from '@/auth/axios';
 import { GameTricksModal } from '@/components/GameTricksModal';
@@ -22,6 +23,7 @@ import { Theme } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { gameSyncService } from '../../services/GameSyncService';
 import { localGameDB } from '../../services/LocalGameDatabase';
+import { calculateForceLetterPayload } from '../../services/SharedGameLogic';
 
 
 const GAME_LETTERS = ['S', 'K', 'I'];
@@ -80,7 +82,9 @@ export default function GameScreen1v1() {
     roundResolvedMessage,
     lastTryMessage,
     publishLetterUpdate,
-    publishGameStatus
+    publishGameStatus,
+    syncRequestMessage,
+    requestGameState
   } = useChallenge();
 
   // Connection state
@@ -196,6 +200,44 @@ export default function GameScreen1v1() {
   const lastLocation = useRef<Location.LocationObjectCoords | null>(null);
 
   const isCurrentSetter = whosSet === p1Username;
+
+  const formatLetters = (count: number) => {
+    return GAME_LETTERS.slice(0, count).join('.') || 'No letters';
+  };
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: string) => {
+      //  App goes to Background/Lock Screen -> SHOW Notification
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (gameStatus === 'playing' && gameId > 0) {
+          updateGameNotification(
+            gameId,
+            p1Username,
+            formatLetters(p1Letters),
+            p2Username,
+            formatLetters(p2Letters),
+            calledTrick || 'Waiting...',
+            whosSet
+          );
+        }
+      }
+      // App comes to Foreground -> HIDE Notification
+      else if (nextAppState === 'active') {
+        await stopLiveNotification();
+
+        if (gameId > 0 && user?.username) {
+          syncGameState();
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Cleanup: Remove listener and ensure notification is gone when component unmounts
+    return () => {
+      subscription.remove();
+      stopLiveNotification();
+    };
+  }, [gameStatus, gameId, p1Username, p1Letters, p2Username, p2Letters, calledTrick]);
 
   // ==================== CHALLENGE ACCEPTANCE ====================
   useEffect(() => {
@@ -384,21 +426,13 @@ export default function GameScreen1v1() {
   // ==================== GAME LOGIC ====================
   const addLetterToPlayer = (player: string) => {
     if (gameStatus !== 'playing' || p1Letters >= MAX_LETTERS || p2Letters >= MAX_LETTERS) return;
-    let setterLanded = null;
-    let receiverLanded = null;
-    if (player === p1Username && whosSet === p1Username) {
-      setterLanded = false;
-      receiverLanded = true;
-    } else if (player === p1Username && whosSet !== p1Username) {
-      setterLanded = true;
-      receiverLanded = false;
-    } else if (player === p2Username && whosSet !== p2Username) {
-      setterLanded = true;
-      receiverLanded = false;
-    } else if (player === p2Username && whosSet === p2Username) {
-      setterLanded = false;
-      receiverLanded = true;
-    }
+
+    const { setterLanded, receiverLanded } = calculateForceLetterPayload(
+      p1Username,
+      p2Username,
+      whosSet,
+      player
+    );
     setCurrentMessage("Letter added, trick skipped");
     saveRound(gameId, whosSet, 'Letter added without trick', setterLanded, receiverLanded, player);
   };
@@ -522,6 +556,7 @@ export default function GameScreen1v1() {
           setCurrentMessage(`Both landed! Game continues.`);
         }
         setCalledTrick("Awaiting set call...");
+
       }
       // Setter lands, receiver fails
       else if (setterLanded && !receiverLanded) {
@@ -670,10 +705,13 @@ export default function GameScreen1v1() {
     setSetCallModalVisible(false);
     setCurrentMessage(`${whosSet} called: ${trickString}`);
 
+    // Save to local storage immediately so it persists even if app closes
+    saveLocalGameState();
+
     if (gameId > 0 && isOnline) {
       publishTrickCall(gameId, whosSet, trickString);
     }
-  }, [whosSet, gameId, publishTrickCall, isOnline]);
+  }, [whosSet, gameId, publishTrickCall, isOnline, saveLocalGameState]);
 
   const handleChallengeStart = useCallback((opponentUsername: string) => {
     setP2Username(opponentUsername);
@@ -781,13 +819,8 @@ export default function GameScreen1v1() {
 
   useEffect(() => {
     if (trickCallMessage && trickCallMessage.gameId === gameId) {
-      console.log('Received trick call:', trickCallMessage);
       setCalledTrick(trickCallMessage.trickDetails);
-      setCurrentMessage(`${trickCallMessage.setterUsername} called: ${trickCallMessage.trickDetails}`);
-      setWhosSet(trickCallMessage.setterUsername);
 
-      // Save state immediately
-      saveLocalGameState();
     }
   }, [trickCallMessage, gameId]);
 
@@ -826,6 +859,7 @@ export default function GameScreen1v1() {
     }
   }, [gameStatus]);
 
+
   useEffect(() => {
     if (roundResolvedMessage && roundResolvedMessage.gameId === gameId && !isProcessingRound.current) {
       console.log('Received round resolution:', roundResolvedMessage);
@@ -858,6 +892,38 @@ export default function GameScreen1v1() {
       saveLocalGameState();
     }
   }, [roundResolvedMessage, gameId]);
+
+  useEffect(() => {
+    const loadStoredState = async () => {
+      if (gameId > 0) {
+        const saved = await localGameDB.getGameState(gameId);
+        if (saved && saved.calledTrick && saved.calledTrick !== 'Awaiting set call...') {
+          setCalledTrick(saved.calledTrick);
+          setWhosSet(saved.whosSet);
+        }
+      }
+    };
+    loadStoredState();
+  }, [gameId]);
+
+  // 3. Effect to ASK for state when connecting (The "Handshake" fix)
+  useEffect(() => {
+    if (isConnected && gameId > 0) {
+      // As soon as we connect, ask the other player "What is the trick?"
+      requestGameState(gameId);
+    }
+  }, [isConnected, gameId]);
+
+  // 4. Effect to RESPOND to others' requests
+  useEffect(() => {
+    // If someone else is asking for the state and I have the trick
+    if (syncRequestMessage && syncRequestMessage.requester !== user?.username) {
+      if (calledTrick && calledTrick !== 'Awaiting set call...') {
+        // Re-broadcast my local trick so their app can see it
+        publishTrickCall(gameId, whosSet, calledTrick);
+      }
+    }
+  }, [syncRequestMessage]);
 
   // ==================== RENDER ====================
   return (

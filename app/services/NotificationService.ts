@@ -62,7 +62,7 @@ export async function registerForPushNotificationsAsync() {
     return token;
 }
 
-// 2. Send Token to Backend
+//  Send Token to Backend
 export async function sendPushTokenToBackend(token: string | undefined) {
     if (!token) return;
 
