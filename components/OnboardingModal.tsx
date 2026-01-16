@@ -1,6 +1,6 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { X } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
@@ -8,19 +8,20 @@ const { width, height } = Dimensions.get('window');
 
 interface VideoProps {
     source: any;
-    thumbnail: any; // Add a static image for each video
+    thumbnail: any;
     isActive: boolean;
-    isPreload: boolean; // Is it the next page?
+    isPreload: boolean;
 }
 
 // Sub-component to manage individual video players
-const OnboardingVideo = ({ source, thumbnail, isActive, isPreload }: VideoProps) => {
-    // Only create the player if the page is active or the very next one
+const OnboardingVideo = memo(({ source, thumbnail, isActive, isPreload }: VideoProps) => {
     const shouldLoad = isActive || isPreload;
     const player = useVideoPlayer(shouldLoad ? source : null, (player) => {
-        player.loop = true;
-        player.muted = true;
-        if (isActive) player.play();
+        if (player) {
+            player.loop = true;
+            player.muted = true;
+            if (isActive) player.play();
+        }
     });
 
     useEffect(() => {
@@ -35,7 +36,6 @@ const OnboardingVideo = ({ source, thumbnail, isActive, isPreload }: VideoProps)
 
     return (
         <View style={styles.videoContainer}>
-            {/* Show thumbnail while video buffers */}
             <Image
                 source={thumbnail}
                 style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
@@ -48,7 +48,16 @@ const OnboardingVideo = ({ source, thumbnail, isActive, isPreload }: VideoProps)
             />
         </View>
     );
-};
+});
+
+OnboardingVideo.displayName = 'OnboardingVideo';
+
+interface PageContent {
+    title: string;
+    description: string;
+    videoSource?: any;
+    logoSource?: any;
+}
 
 interface Props {
     isVisible: boolean;
@@ -59,11 +68,11 @@ const OnboardingModal = ({ isVisible, onClose }: Props) => {
     const pagerRef = useRef<PagerView>(null);
     const [currentPage, setCurrentPage] = useState(0);
 
-    const pages = [
+    const pages: PageContent[] = [
         {
             title: "Welcome to Laps!",
             description: "Your ultimate ski challenge app. Let's get you started with a quick tour!",
-            videoSource: require('../assets/how-to-challenge.mp4'),
+            logoSource: require('../assets/images/logo.png'),
         },
         {
             title: "Challenge a Friend",
@@ -71,8 +80,8 @@ const OnboardingModal = ({ isVisible, onClose }: Props) => {
             videoSource: require('../assets/how-to-challenge.mp4'),
         },
         {
-            title: "Playing a Match",
-            description: "Whosever set it is calls a trick for you both to try, enter if each player landed or fell. If both players land, game continues, both players fall, no letters but set switches, if only 1 player falls they get a letter, but if it's the setter that fell, the set switches as well. First to 3 letters loses, last letter gets 2 tries.",
+            title: "The Rules of S.K.I",
+            description: "• Set it: Setter calls & performs a trick\n• Match it: Land or take a letter\n• Switch it: Set changes on setter fall\n• Final: 1st to 3 letters loses (2nd try on last letter)",
             videoSource: require('../assets/how-to-call-trick.mp4'),
         },
         {
@@ -80,12 +89,21 @@ const OnboardingModal = ({ isVisible, onClose }: Props) => {
             description: "If you don't want to spend time calling tricks in the app, just tap the letters of the player who got a letter and keep the game moving!",
             videoSource: require('../assets/how-to-add-letter-without-trick.mp4'),
         },
-        // {
-        //     title: "Trick Generator",
-        //     description: "Stuck for ideas? Generate a random trick and push your limits.",
-        //     videoSource: require('./assets/generator-demo.mp4'),
-        // }
     ];
+
+    const renderContent = (page: PageContent, index: number) => {
+        if (page.logoSource) {
+            return <Image source={page.logoSource} style={styles.logo} resizeMode="contain" />;
+        }
+        return (
+            <OnboardingVideo
+                source={page.videoSource}
+                isActive={currentPage === index}
+                thumbnail={undefined}
+                isPreload={currentPage === index - 1 || currentPage === index + 1}
+            />
+        );
+    };
 
     return (
         <Modal visible={isVisible} animationType="slide" transparent={true}>
@@ -103,9 +121,7 @@ const OnboardingModal = ({ isVisible, onClose }: Props) => {
                     >
                         {pages.map((page, index) => (
                             <View key={index} style={styles.page}>
-                                <OnboardingVideo
-                                    source={page.videoSource}
-                                    isActive={currentPage === index} thumbnail={undefined} isPreload={false} />
+                                {renderContent(page, index)}
                                 <Text style={styles.title}>{page.title}</Text>
                                 <Text style={styles.description}>{page.description}</Text>
                             </View>
@@ -146,8 +162,9 @@ const styles = StyleSheet.create({
     closeButton: { position: 'absolute', top: 10, right: 10, zIndex: 10, padding: 5 },
     pager: { flex: 1 },
     page: { alignItems: 'center', padding: 24, paddingTop: 10 },
-    video: { width: '100%', height: height * 0.4, borderRadius: 16, marginBottom: 24, backgroundColor: '#f0f0f0' },
-    videoContainer: { width: '100%', height: height * 0.4, borderRadius: 16, marginBottom: 24, overflow: 'hidden', backgroundColor: '#f0f0f0' },
+    video: { width: '100%', height: height * 0.5, borderRadius: 16, marginBottom: 24, backgroundColor: '#f0f0f0' },
+    videoContainer: { width: '100%', height: height * 0.45, borderRadius: 16, marginBottom: 24, overflow: 'hidden', backgroundColor: '#f0f0f0' },
+    logo: { width: '60%', height: height * 0.3, borderRadius: 16, marginBottom: 24 },
     title: { fontSize: 24, fontWeight: '800', marginBottom: 12, textAlign: 'center', color: '#1a1a1a' },
     description: { fontSize: 16, textAlign: 'center', color: '#666', lineHeight: 24 },
     footer: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
