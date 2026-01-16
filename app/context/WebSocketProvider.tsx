@@ -27,6 +27,7 @@ interface ChallengeDto {
 }
 
 interface PlayerActionMessage {
+    timestamp: any;
     gameId: number;
     userId: number;
     action: 'land' | 'fail';
@@ -71,6 +72,7 @@ interface GameStatusMessage {
 }
 
 interface SyncRequestMessage {
+    timestamp: any;
     gameId: number;
     requester: string;
 }
@@ -290,7 +292,8 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         const message: PlayerActionMessage = {
             gameId,
             userId,
-            action
+            action,
+            timestamp: undefined
         };
 
         clientRef.current.publish({

@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { handleBackgroundEvent, setupNotificationChannels } from './services/LiveNotificationService';
+import { handleBackgroundEvent, setupNotificationChannels } from '../services/LiveNotificationService';
 
 // Register Background Handler 
 notifee.onBackgroundEvent(handleBackgroundEvent);

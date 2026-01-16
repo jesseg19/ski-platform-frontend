@@ -12,7 +12,7 @@ import React, { useEffect, useState } from 'react';
 import { ImageBackground, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SvgCss } from 'react-native-svg/css';
-import { gameSyncService } from '../../services/GameSyncService';
+import { gameSyncService } from '../../../services/GameSyncService';
 
 
 interface UserProfile {

@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { LocalGameDatabase, localGameDB } from './LocalGameDatabase';
 
 interface SyncResult {
+    [x: string]: any;
     success: boolean;
     conflicts?: ConflictInfo[];
     syncedActions: number;

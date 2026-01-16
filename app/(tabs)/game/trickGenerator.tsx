@@ -8,8 +8,8 @@ import { Theme } from '@/constants/theme';
 import { GRAB_LIST, JUMP_BASES, RAIL_BASES, RAIL_MODIFIERS } from '@/constants/tricks';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { saveGeneratorSettings } from '../../services/BackgroundLogic';
-import { stopLiveNotification, updateTrickNotification } from '../../services/LiveNotificationService';
+import { saveGeneratorSettings } from '../../../services/BackgroundLogic';
+import { stopLiveNotification, updateTrickNotification } from '../../../services/LiveNotificationService';
 
 // --- Custom Button Component for Difficulty Levels ---
 interface DifficultyButtonProps {

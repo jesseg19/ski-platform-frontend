@@ -1,8 +1,8 @@
 import NetInfo from '@react-native-community/netinfo';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { gameSyncService } from '../services/GameSyncService';
-import { localGameDB } from '../services/LocalGameDatabase';
+import { gameSyncService } from './GameSyncService';
+import { localGameDB } from './LocalGameDatabase';
 
 interface UseOfflineGameProps {
     gameId: number;

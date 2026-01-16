@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { DIFFICULTY_LEVELS, generateRailTrick, generateTrick } from '../(tabs)/game/trickGenerator';
+import { DIFFICULTY_LEVELS, generateRailTrick, generateTrick } from '../app/(tabs)/game/trickGenerator';
 
 const API_BASE_URL = "https://laps.api.jessegross.ca";
 

@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LeaderboardModal from '@/components/LeaderboardModal';
 import OnboardingModal from "@/components/OnboardingModal";
 import { useLeaderboard } from '@/hooks/useLeaderboard';
-import { OnboardingService } from "../../services/checkOnboardingStatus";
+import { OnboardingService } from "../../../services/checkOnboardingStatus";
 
 
 // --- INTERFACES  ---

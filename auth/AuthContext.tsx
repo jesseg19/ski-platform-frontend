@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { registerForPushNotificationsAsync, sendPushTokenToBackend } from '../app/services/NotificationService';
+import { registerForPushNotificationsAsync, sendPushTokenToBackend } from '../services/NotificationService';
 import { setSignOutCallback } from './axios';
 
 interface User {
