@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, AppState, ImageBackground, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, AppStateStatus, ImageBackground, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CustomButton } from '@/components/CustomButton';
@@ -39,6 +39,8 @@ export default function GameScreen1v1() {
   const params = useLocalSearchParams();
   const { resetGameKey, gameKey } = useGame();
 
+
+
   // Parse initial game props
   const initialGameProps = useMemo(() => {
     if (params.activeGame && typeof params.activeGame === 'string') {
@@ -54,6 +56,11 @@ export default function GameScreen1v1() {
 
   // Get game state
   const gameState = useGameState(initialGameProps);
+
+  const appStateRef = useRef(AppState.currentState);
+  // Use refs for values needed inside the listener to avoid re-mounting the effect
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
 
   // Get sync utilities
   const { isOnline, saveLocalGameState, syncGameState: syncGameStateOriginal } = useGameSync(gameState.gameId, user);
@@ -123,8 +130,9 @@ export default function GameScreen1v1() {
       console.log('Setting trick from WebSocket:', trickDetails);
       gameState.setCalledTrick(trickDetails);
       saveCurrentGameState();
-      // Update notification with new trick
-      if (gameState.gameId > 0) {
+
+      // Update notification with new trick ONLY if in background
+      if (gameState.gameId > 0 && AppState.currentState !== 'active') {
         updateGameNotification(
           gameState.gameId,
           gameState.p1Username,
@@ -225,36 +233,42 @@ export default function GameScreen1v1() {
 
   // App state change handler (notifications)
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState: string) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
-        if (gameState.gameStatus === 'playing' && gameState.gameId > 0) {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      const currentState = gameStateRef.current;
+
+      // 1. App moving from Foreground to Background
+      // We strictly check for 'active' -> 'background' transition
+      if (
+        appStateRef.current === 'active' &&
+        nextAppState === 'background'
+      ) {
+        if (currentState.gameStatus === 'playing' && currentState.gameId > 0) {
+          console.log('App moved to background, starting live notification service...');
           await saveCurrentGameState();
           await startLiveNotificationService();
 
-          // Check if game is over
-          const isGameOver = gameState.p1Letters === 3 || gameState.p2Letters === 3;
-
+          const isGameOver = currentState.p1Letters === 3 || currentState.p2Letters === 3;
           updateGameNotification(
-            gameState.gameId,
-            gameState.p1Username,
-            formatLetters(gameState.p1Letters),
-            gameState.p2Username,
-            formatLetters(gameState.p2Letters),
-            gameState.calledTrick || 'Waiting...',
-            gameState.whosSet,
+            currentState.gameId,
+            currentState.p1Username,
+            formatLetters(currentState.p1Letters),
+            currentState.p2Username,
+            formatLetters(currentState.p2Letters),
+            currentState.calledTrick || 'Waiting...',
+            currentState.whosSet,
             isGameOver
           );
         }
       } else if (nextAppState === 'active') {
-        // App coming to foreground - sync state from server
+        // App coming to foreground - Stop Notifications & Sync
         await stopLiveNotification();
+
         if (gameState.gameId > 0 && isOnline) {
           console.log('App resumed, syncing game state...');
           try {
             const synced = await syncGameState();
             console.log('Synced game state on resume:', synced);
             if (synced) {
-              console.log('Synced game data: test');
               const p1Letters = synced.players[0]?.finalLetters || gameState.p1Letters;
               const p2Letters = synced.players[1]?.finalLetters || gameState.p2Letters;
 
@@ -272,34 +286,20 @@ export default function GameScreen1v1() {
           }
         }
       }
+
+      // Always update the ref with the latest state
+      appStateRef.current = nextAppState;
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
       subscription.remove();
+      // Only stop notification on unmount if you want the service killed when 
+      // navigating away from the game screen entirely
       stopLiveNotification();
     };
-  }, [gameState.gameStatus, gameState.gameId, gameState.p1Username, gameState.p1Letters, gameState.p2Username, gameState.p2Letters, gameState.calledTrick, gameState.whosSet, isOnline, syncGameState]);
-
-  // Subscribe to trick call updates even when app is in background
-  useEffect(() => {
-    if (gameState.gameId > 0) {
-      const isGameOver = gameState.p1Letters === 3 || gameState.p2Letters === 3;
-
-      // This ensures the notification updates when trick is called
-      updateGameNotification(
-        gameState.gameId,
-        gameState.p1Username,
-        formatLetters(gameState.p1Letters),
-        gameState.p2Username,
-        formatLetters(gameState.p2Letters),
-        gameState.calledTrick || 'Waiting...',
-        gameState.whosSet,
-        isGameOver
-      );
-    }
-  }, [gameState.calledTrick, gameState.gameId, gameState.p1Letters, gameState.p2Letters]);
+  }, [isOnline, syncGameState, saveCurrentGameState]);
 
   // Challenge acceptance
   useEffect(() => {

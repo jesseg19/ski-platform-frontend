@@ -7,9 +7,12 @@ import notifee, {
     EventType,
 } from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { generateTrickFromBackground, performGameActionInBackground } from './BackgroundLogic';
 import { calculateForceLetterPayload, getNextLetterString } from './SharedGameLogic';
+
+let appState = AppState.currentState;
+
 
 // Store current game state for iOS background handling
 let currentGameState = {
@@ -39,14 +42,14 @@ export const setupNotificationChannels = async () => {
         {
             id: 'TRICK_GEN',
             actions: [
-                { id: 'GENERATE', title: '🔄 Next Trick', foreground: false },
+                { id: 'GENERATE', title: '🎲 Next Trick', foreground: false },
             ],
         },
         {
             id: 'GAME_1V1',
             actions: [
-                { id: 'BTN_P1', title: '+ P1 Letter', foreground: false },
-                { id: 'BTN_P2', title: '+ P2 Letter', foreground: false },
+                { id: 'BTN_P1', title: `➕ Letter for ${currentGameState.p1Name}`, foreground: false },
+                { id: 'BTN_P2', title: `➕ Letter for ${currentGameState.p2Name}`, foreground: false },
                 { id: 'DISMISS', title: 'Dismiss', foreground: false },
             ],
         },
@@ -94,6 +97,7 @@ export const updateGameNotification = async (
     isGameOver: boolean = false
 ) => {
     try {
+        const shouldBeForeground = AppState.currentState !== 'active';
         // Store state for background handling
         setGameNotificationState({ gameId, p1Name, p2Name, p1Letters, p2Letters, trick, whosSet });
 
@@ -140,7 +144,7 @@ export const updateGameNotification = async (
                 android: {
                     channelId: 'live-interactive',
                     ongoing: false,
-                    asForegroundService: false,  // Don't use foreground service for game over
+                    asForegroundService: shouldBeForeground,  // Don't use foreground service for game over
                     onlyAlertOnce: true,
                     color: '#FF9800',
                     category: AndroidCategory.STATUS,
@@ -173,7 +177,7 @@ export const updateGameNotification = async (
                             android: {
                                 channelId: 'live-interactive',
                                 ongoing: true,
-                                asForegroundService: true,
+                                asForegroundService: shouldBeForeground,
                                 onlyAlertOnce: true,
                                 color: '#FF9800',
                                 category: AndroidCategory.STATUS,
@@ -193,7 +197,7 @@ export const updateGameNotification = async (
                                 sound: 'default',
                             },
                         });
-                        foregroundServiceActive = true;
+                        foregroundServiceActive = shouldBeForeground;
                     } catch (error) {
                         console.error('Error starting foreground service:', error);
                         foregroundServiceActive = false;
@@ -206,7 +210,7 @@ export const updateGameNotification = async (
                             android: {
                                 channelId: 'live-interactive',
                                 ongoing: false,
-                                asForegroundService: false,
+                                asForegroundService: shouldBeForeground,
                                 onlyAlertOnce: true,
                                 color: '#FF9800',
                                 category: AndroidCategory.STATUS,
@@ -228,7 +232,7 @@ export const updateGameNotification = async (
                         android: {
                             channelId: 'live-interactive',
                             ongoing: true,
-                            asForegroundService: true,
+                            asForegroundService: shouldBeForeground,
                             onlyAlertOnce: true,
                             color: '#FF9800',
                             category: AndroidCategory.STATUS,
@@ -268,7 +272,7 @@ export const updateGameNotification = async (
 export const updateTrickNotification = async (text: string) => {
     await notifee.displayNotification({
         id: 'trick-gen',
-        title: '🏂 Trick Generator',
+        title: '🔁 Trick Generator',
         body: text,
         android: {
             channelId: 'live-interactive',
@@ -276,7 +280,7 @@ export const updateTrickNotification = async (text: string) => {
             asForegroundService: true,
             color: '#2196F3',
             actions: [
-                { title: '🔄 Roll Again', pressAction: { id: 'GENERATE' } },
+                { title: '🎲 Roll Again', pressAction: { id: 'GENERATE' } },
                 { title: 'Exit', pressAction: { id: 'STOP' } },
             ],
             onlyAlertOnce: true,
@@ -330,6 +334,12 @@ export const handleBackgroundEvent = async ({ type, detail }: Event) => {
 
                 let p1Letters = (data.p1Letters as string) || currentGameState.p1Letters || "";
                 let p2Letters = (data.p2Letters as string) || currentGameState.p2Letters || "";
+
+                // CHECK: If game is already effectively over in the notification state, ignore further adds
+                if (p1Letters === 'SKI' || p2Letters === 'SKI') {
+                    // Game is already over, prevent adding more letters
+                    return;
+                }
 
                 let isGameOver = false;
 

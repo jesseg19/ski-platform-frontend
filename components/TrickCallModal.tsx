@@ -204,27 +204,34 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
             ExpoSpeechRecognitionModule.stop();
             setIsListening(false);
         } else {
-            const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-            if (!permissions.granted) {
-                Alert.alert("Permission Required", "Please enable microphone permissions to use voice commands.");
-                return;
-            }
-            // Start the recognizer
-            ExpoSpeechRecognitionModule.start({
-                lang: "en-US",
-                interimResults: true,
-                maxAlternatives: 1,
-                iosCategory: {
-                    category: "record",
-                    categoryOptions: ["allowBluetooth", "allowBluetoothA2DP"],
-                    mode: "measurement",
-                },
-                contextualStrings: allTrickTerms,
-            });
-            setIsListening(true);
-            setOpenSections(['custom']);
+            try {
+                const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+                if (!permissions.granted) {
+                    Alert.alert("Permission Required", "Please enable microphone permissions to use voice commands.");
+                    return;
+                }
+                setIsListening(true);
+                setOpenSections(['custom']);
+                // Start the recognizer
+                ExpoSpeechRecognitionModule.start({
+                    lang: "en-US",
+                    interimResults: true,
+                    maxAlternatives: 1,
+                    iosCategory: {
+                        category: "record",
+                        categoryOptions: ["allowBluetooth", "allowBluetoothA2DP"],
+                        mode: "measurement",
+                    },
+                    contextualStrings: allTrickTerms,
+                });
 
-            scrollToBottom();
+
+                scrollToBottom();
+            } catch (error) {
+                console.error("Speech recognition error:", error);
+                setIsListening(false);
+                Alert.alert("Error", "Failed to start speech recognition");
+            }
         }
     };
     const scrollToBottom = () => {

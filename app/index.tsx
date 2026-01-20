@@ -1,13 +1,10 @@
-import notifee from '@notifee/react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { handleBackgroundEvent, setupNotificationChannels } from '../services/LiveNotificationService';
 
-// Register Background Handler 
-notifee.onBackgroundEvent(handleBackgroundEvent);
+
 
 export default function Index() {
   useEffect(() => {
@@ -29,14 +26,9 @@ export default function Index() {
     checkAuthStatus();
   }, []);
 
-  useEffect(() => {
-    // Setup Channels on App Launch
-    setupNotificationChannels();
 
-    // Register Foreground Handler 
-    const unsubscribe = notifee.onForegroundEvent(handleBackgroundEvent);
-    return () => unsubscribe();
-  }, []);
+
+
 
   // Show a loading indicator while we check the authentication status
   // This prevents a brief flash of the default redirect

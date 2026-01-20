@@ -9,6 +9,8 @@ export const useWebSocketSync = (
 ) => {
     const {
         subscribeToGame,
+        isConnected,
+        requestGameState,
         playerActionMessage,
         trickCallMessage,
         letterUpdateMessage,
@@ -20,16 +22,40 @@ export const useWebSocketSync = (
     // Track processed messages to avoid duplicates
     const processedMessages = useRef<Set<string>>(new Set());
 
-    // Subscribe to game
+    // Effect 1: Handle Subscription
     useEffect(() => {
-        if (gameId > 0 && isOnline) {
-            console.log('Subscribing to game:', gameId);
-            // Clear processed messages when subscribing to a new game
+        // Only subscribe if we have a valid ID and the socket is actually CONNECTED
+        if (gameId > 0 && isConnected) {
+            console.log('Initiating subscription for:', gameId);
+
+            // Clear old message tracking
             processedMessages.current.clear();
-            const unsubscribe = subscribeToGame(gameId);
-            return unsubscribe;
+
+            // Pass the required callback
+            const unsubscribe = subscribeToGame(gameId, (data) => {
+                console.log("Subscription callback received data:", data);
+                // If your backend sends a full game update here, you could call:
+                // callbacks.onGameUpdate?.(data);
+            });
+
+            return () => {
+                if (unsubscribe) {
+                    console.log('Cleaning up subscription for:', gameId);
+                    unsubscribe();
+                }
+            };
         }
-    }, [gameId, subscribeToGame, isOnline]);
+    }, [gameId, isConnected, subscribeToGame]);
+
+    // Effect 2: Initial State Request
+    useEffect(() => {
+        // Only request state if we are actually connected
+        // This prevents the "No underlying connection" crash
+        if (gameId > 0 && isConnected) {
+            console.log('Requesting game state sync...');
+            requestGameState(gameId);
+        }
+    }, [gameId, isConnected, requestGameState]);
 
     // Handle trick call messages
     useEffect(() => {

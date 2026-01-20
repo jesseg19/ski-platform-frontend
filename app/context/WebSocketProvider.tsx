@@ -85,7 +85,7 @@ interface ChallengeContextValue {
     sendChallenge: (challengedId: number) => Promise<void>;
     respondToChallenge: (action: 'ACCEPTED' | 'REJECTED', challengeId?: number) => Promise<void>;
     resetSentChallenge: () => void;
-    subscribeToGame: (gameId: number) => () => void;
+    subscribeToGame: (gameId: number, callback: (message: any) => void) => () => void;
     publishPlayerAction: (gameId: number, userId: number, action: 'land' | 'fail') => void;
     publishTrickCall: (gameId: number, setterUsername: string, trickDetails: string) => void;
     publishLastTry: (gameId: number, playerOnLastTry: string, message: string) => void;
@@ -126,8 +126,12 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
     const clientRef = React.useRef<Client | null>(null);
 
     useEffect(() => {
+        // If no user, kill any existing connection and exit
         if (!user) {
-            if (clientRef.current?.active) clientRef.current.deactivate();
+            if (clientRef.current) {
+                clientRef.current.deactivate();
+                clientRef.current = null;
+            }
             setIsConnected(false);
             return;
         }
@@ -140,10 +144,10 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             if (!token || !isMounted) return;
 
             // 2. Close old connection
-            if (clientRef.current?.active) {
-                clientRef.current.deactivate();
+            if (clientRef.current) {
+                await clientRef.current.deactivate();
+                clientRef.current = null;
             }
-
             // 3. Create new client with the token we just grabbed
             const client = new Client({
                 // Note: No 'async' here!
@@ -160,26 +164,31 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                         handleChallengeUpdate(JSON.parse(message.body));
                     });
                 },
-                onDisconnect: () => setIsConnected(false),
+                onDisconnect: () => {
+                    if (isMounted) setIsConnected(false);
+                },
                 onStompError: async (frame) => {
-                    const error = frame.headers?.message || '';
-                    if (error.includes('401') || error.includes('403') || error.includes('Authentication')) {
-                        console.log('WebSocket auth error, refreshing token...');
-                        client.deactivate();
-
+                    console.log('STOMP Error:', frame.headers['message']);
+                    // If we get an auth error, we deactivate and trigger a refresh
+                    if (frame.headers['message']?.includes('401') || frame.headers['message']?.includes('Auth')) {
+                        if (clientRef.current) clientRef.current.deactivate();
                         try {
                             await refreshAccessToken();
-                            // tokenRefreshed will increment, triggering reconnection
+                            // This will increment tokenRefreshed and restart this useEffect
                         } catch (e) {
-                            console.error('Failed to refresh token:', e);
-                            // signOut already called in refreshAccessToken
+                            console.error('Socket auth refresh failed');
                         }
                     }
+                },
+                onWebSocketClose: () => {
+                    if (isMounted) setIsConnected(false);
                 }
             });
 
-            client.activate();
-            clientRef.current = client;
+            if (isMounted) {
+                client.activate();
+                clientRef.current = client;
+            }
         };
 
         connect();
@@ -188,9 +197,10 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             isMounted = false;
             if (clientRef.current) {
                 clientRef.current.deactivate();
+                clientRef.current = null;
             }
         };
-    }, [user, tokenRefreshed]);
+    }, [user?.id, tokenRefreshed]); // Use user.id to avoid unnecessary re-runs if the user object reference changes
 
     useEffect(() => {
         setTokenRefreshCallback(() => {
@@ -198,40 +208,64 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         })
     })
 
-    const subscribeToGame = useCallback((gameId: number) => {
-        if (!clientRef.current?.active) {
-            console.warn('WebSocket not connected, cannot subscribe to game updates.');
-            return () => { };
+    const subscribeToGame = useCallback((gameId: number, callback: (message: any) => void): () => void => {
+        // 1. Guard check: If not connected, return a "no-op" function
+        // This satisfies the "() => void" return type even when we can't subscribe
+        if (!clientRef.current || !clientRef.current.connected || !isConnected) {
+            console.warn(`Subscription deferred: Socket not connected for game ${gameId}`);
+            return () => {
+                console.log("Cleanup called, but no subscription was active.");
+            };
         }
 
-        const destination = `/topic/game/${gameId}`;
+        try {
+            const destination = `/topic/game/${gameId}`;
+            console.log(`Subscribing to game destination: ${destination}`);
 
-        const subscription = clientRef.current.subscribe(destination, (message) => {
-            try {
-                const data = JSON.parse(message.body);
+            // 2. Create the single subscription
+            const subscription = clientRef.current.subscribe(destination, (message) => {
+                try {
+                    const data = JSON.parse(message.body);
 
-                if ('action' in data && 'userId' in data && !('trickDetails' in data)) {
-                    setPlayerActionMessage(data as PlayerActionMessage);
-                } else if ('trickDetails' in data && 'setterUsername' in data && !('setterLanded' in data)) {
-                    setTrickCallMessage(data as TrickCallMessage);
-                } else if ('newLetterCount' in data && 'username' in data) {
-                    setLetterUpdateMessage(data as LetterUpdateMessage);
-                } else if ('setterLanded' in data && 'receiverLanded' in data) {
-                    setRoundResolvedMessage(data as RoundResolvedMessage);
-                } else if ('playerOnLastTry' in data) {
-                    setLastTryMessage(data as LastTryMessage);
-                } else if ('requester' in data && 'gameId' in data && !('trickDetails' in data)) {
-                    setSyncRequestMessage(data as SyncRequestMessage);
+                    // --- Task A: Update the "Global" Provider States ---
+                    if ('action' in data && 'userId' in data && !('trickDetails' in data)) {
+                        setPlayerActionMessage(data as PlayerActionMessage);
+                    } else if ('trickDetails' in data && 'setterUsername' in data && !('setterLanded' in data)) {
+                        setTrickCallMessage(data as TrickCallMessage);
+                    } else if ('newLetterCount' in data && 'username' in data) {
+                        setLetterUpdateMessage(data as LetterUpdateMessage);
+                    } else if ('setterLanded' in data && 'receiverLanded' in data) {
+                        setRoundResolvedMessage(data as RoundResolvedMessage);
+                    } else if ('playerOnLastTry' in data) {
+                        setLastTryMessage(data as LastTryMessage);
+                    } else if ('requester' in data && 'gameId' in data && !('trickDetails' in data)) {
+                        setSyncRequestMessage(data as SyncRequestMessage);
+                    }
+
+                    // --- Task B: Execute the component-specific callback ---
+                    // (e.g., updating the main gameData state in 1v1.tsx)
+                    if (callback) {
+                        callback(data);
+                    }
+                } catch (parseError) {
+                    console.error('Failed to parse socket message body:', parseError);
                 }
-            } catch (error) {
-                console.error('Failed to parse game update:', error);
-            }
-        });
+            });
 
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, []);
+            // 3. Return the subscription object so the UI can call .unsubscribe()
+            // 2. CRITICAL: Return a function that calls unsubscribe
+            // This makes the return type () => void
+            return () => {
+                console.log(`Unsubscribing from game: ${gameId}`);
+                subscription.unsubscribe();
+            };
+
+        } catch (error) {
+            console.error('Failed to subscribe to game:', error);
+            // Return a no-op function on error to satisfy the interface
+            return () => { };
+        }
+    }, [isConnected]); // dependencies
 
     const handleChallengeUpdate = (challengeDto: ChallengeDto): void => {
         if (challengeDto.challenged.userId === user?.id && challengeDto.status === 'PENDING') {
@@ -461,14 +495,24 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
     }, []);
 
     const requestGameState = useCallback((gameId: number) => {
-        if (!clientRef.current?.active) return;
-
-        // Broadcast a request for the current state to everyone in the game topic
-        clientRef.current.publish({
-            destination: `/app/game/requestSync`, // Your backend should broadcast this to /topic/game/{gameId}
-            body: JSON.stringify({ gameId, requester: user?.username })
-        });
-    }, [user]);
+        if (clientRef.current?.connected) {
+            clientRef.current.publish({
+                destination: '/app/game.requestSync',
+                body: JSON.stringify({ gameId }),
+            });
+        } else {
+            // Instead of just warning, wait 1 second and try one last time
+            console.log("WS not ready, queuing sync request...");
+            setTimeout(() => {
+                if (clientRef.current?.connected) {
+                    clientRef.current.publish({
+                        destination: '/app/game.requestSync',
+                        body: JSON.stringify({ gameId }),
+                    });
+                }
+            }, 1500);
+        }
+    }, []);
 
     const value = useMemo(() => ({
         isConnected,

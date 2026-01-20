@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { registerForPushNotificationsAsync, sendPushTokenToBackend } from '../services/NotificationService';
-import { setSignOutCallback } from './axios';
+import { setSignOutCallback, setTokenRefreshCallback } from './axios';
 
 interface User {
   username: string;
@@ -125,6 +125,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clean up the subscription when the component unmounts
       subscription.remove();
     };
+  }, []);
+
+  useEffect(() => {
+    // Link the Axios interceptor to our state refresher
+    setTokenRefreshCallback(() => {
+      setTokenRefreshed(prev => prev + 1);
+    });
   }, []);
 
   const signIn = async (accessToken: string, refreshToken: string, userData: User) => {
