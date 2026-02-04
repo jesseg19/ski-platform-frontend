@@ -1,7 +1,7 @@
 import { Client } from '@stomp/stompjs';
 import { useRouter } from 'expo-router';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 
 import { useAuth } from '@/auth/AuthContext';
 import api, { setTokenRefreshCallback } from '@/auth/axios';
@@ -108,7 +108,7 @@ interface ChallengeProviderProps {
 }
 
 export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
-    const { user, tokenRefreshed, signOut, refreshAccessToken } = useAuth();
+    const { user, tokenRefreshed, isLoading, signOut, refreshAccessToken } = useAuth();
     const router = useRouter();
 
     const [isConnected, setIsConnected] = useState(false);
@@ -123,35 +123,65 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
     const [lastTryMessage, setLastTryMessage] = useState<LastTryMessage | null>(null);
     const [syncRequestMessage, setSyncRequestMessage] = useState<SyncRequestMessage | null>(null);
 
-    const clientRef = React.useRef<Client | null>(null);
+    const clientRef = useRef<Client | null>(null);
+    const tokenRef = useRef<string | null>(null);
 
     useEffect(() => {
-        // If no user, kill any existing connection and exit
-        if (!user) {
-            if (clientRef.current) {
-                clientRef.current.deactivate();
-                clientRef.current = null;
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+            if (nextAppState === 'active') {
+                console.log('App came to foreground, checking connection...');
+                // If we are not connected, try to refresh token immediately. 
+                // This ensures we don't try to connect with an old token.
+                if (!clientRef.current?.connected) {
+                    try {
+                        console.log('Forcing token refresh on app resume...');
+                        await refreshAccessToken();
+                        // Note: triggering refreshAccessToken will increment 'tokenRefreshed'
+                        // which triggers the main useEffect below to reconnect.
+                    } catch (e) {
+                        console.log('Failed to refresh token on resume:', e);
+                    }
+                }
             }
-            setIsConnected(false);
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+            subscription.remove();
+        };
+    }, [refreshAccessToken]);
+    useEffect(() => {
+        // If no user, kill any existing connection and exit
+        if (isLoading || !user) {
             return;
         }
-
+        let client: Client | null = null;
         let isMounted = true;
 
         const connect = async () => {
-            // 1. Get the fresh token first
+            // Get the fresh token first
             const token = await SecureStore.getItemAsync('userAccessToken');
             if (!token || !isMounted) return;
 
-            // 2. Close old connection
+            // Update the Ref immediately so any retries use this new token
+            tokenRef.current = token;
+
+            // Close old connection
             if (clientRef.current) {
                 await clientRef.current.deactivate();
                 clientRef.current = null;
             }
-            // 3. Create new client with the token we just grabbed
-            const client = new Client({
-                // Note: No 'async' here!
-                webSocketFactory: () => new SockJS(`${SOCKET_URL}?token=${encodeURIComponent(token)}`),
+
+            // Create new client with the token we just grabbed
+            client = new Client({
+                // Use the Ref inside the factory. 
+                // SockJS is called every time StompJS tries to reconnect.
+                // Using tokenRef.current ensures it always picks up the latest token found by 'connect'
+                webSocketFactory: () => {
+                    const currentToken = tokenRef.current;
+                    return new SockJS(`${SOCKET_URL}?token=${encodeURIComponent(currentToken || '')}`);
+                },
                 reconnectDelay: 5000,
                 heartbeatIncoming: 4000,
                 heartbeatOutgoing: 4000,
@@ -160,7 +190,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                     console.log('WebSocket Connected');
                     setIsConnected(true);
 
-                    client.subscribe(`/user/queue/challenges`, (message) => {
+                    client?.subscribe(`/user/queue/challenges`, (message) => {
                         handleChallengeUpdate(JSON.parse(message.body));
                     });
                 },
@@ -174,7 +204,6 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                         if (clientRef.current) clientRef.current.deactivate();
                         try {
                             await refreshAccessToken();
-                            // This will increment tokenRefreshed and restart this useEffect
                         } catch (e) {
                             console.error('Socket auth refresh failed');
                         }
@@ -182,6 +211,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 },
                 onWebSocketClose: () => {
                     if (isMounted) setIsConnected(false);
+                    // Note: If the handshake fails (401/403) before STOMP connects, 
+                    // it lands here, NOT in onStompError.
+                    // The AppState listener and tokenRef fix largely handle the recovery.
                 }
             });
 
@@ -200,17 +232,15 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 clientRef.current = null;
             }
         };
-    }, [user?.id, tokenRefreshed]); // Use user.id to avoid unnecessary re-runs if the user object reference changes
+    }, [user?.id, tokenRefreshed, isLoading]);
 
     useEffect(() => {
         setTokenRefreshCallback(() => {
             console.log('Token refreshed, Websokcet will reconnect')
         })
-    })
+    }, []);
 
     const subscribeToGame = useCallback((gameId: number, callback: (message: any) => void): () => void => {
-        // 1. Guard check: If not connected, return a "no-op" function
-        // This satisfies the "() => void" return type even when we can't subscribe
         if (!clientRef.current || !clientRef.current.connected || !isConnected) {
             console.warn(`Subscription deferred: Socket not connected for game ${gameId}`);
             return () => {
@@ -222,12 +252,11 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
             const destination = `/topic/game/${gameId}`;
             console.log(`Subscribing to game destination: ${destination}`);
 
-            // 2. Create the single subscription
+            // Create the single subscription
             const subscription = clientRef.current.subscribe(destination, (message) => {
                 try {
                     const data = JSON.parse(message.body);
 
-                    // --- Task A: Update the "Global" Provider States ---
                     if ('action' in data && 'userId' in data && !('trickDetails' in data)) {
                         setPlayerActionMessage(data as PlayerActionMessage);
                     } else if ('trickDetails' in data && 'setterUsername' in data && !('setterLanded' in data)) {
@@ -242,8 +271,6 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                         setSyncRequestMessage(data as SyncRequestMessage);
                     }
 
-                    // --- Task B: Execute the component-specific callback ---
-                    // (e.g., updating the main gameData state in 1v1.tsx)
                     if (callback) {
                         callback(data);
                     }
@@ -252,9 +279,6 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                 }
             });
 
-            // 3. Return the subscription object so the UI can call .unsubscribe()
-            // 2. CRITICAL: Return a function that calls unsubscribe
-            // This makes the return type () => void
             return () => {
                 console.log(`Unsubscribing from game: ${gameId}`);
                 subscription.unsubscribe();
@@ -262,10 +286,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
 
         } catch (error) {
             console.error('Failed to subscribe to game:', error);
-            // Return a no-op function on error to satisfy the interface
             return () => { };
         }
-    }, [isConnected]); // dependencies
+    }, [isConnected]);
 
     const handleChallengeUpdate = (challengeDto: ChallengeDto): void => {
         if (challengeDto.challenged.userId === user?.id && challengeDto.status === 'PENDING') {

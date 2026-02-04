@@ -178,7 +178,7 @@ export default function NotificationsScreen() {
                             Do you accept the challenge?
                         </ThemedText>
                         <ThemedText style={styles.cardDate}>
-                            {new Date(notification.createdAt).toLocaleString()}
+                            {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
                         </ThemedText>
                         <View style={styles.cardActions}>
                             <TouchableOpacity

@@ -218,9 +218,9 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                     interimResults: true,
                     maxAlternatives: 1,
                     iosCategory: {
-                        category: "record",
+                        category: "playAndRecord",
                         categoryOptions: ["allowBluetooth", "allowBluetoothA2DP"],
-                        mode: "measurement",
+                        mode: "default",
                     },
                     contextualStrings: allTrickTerms,
                 });
