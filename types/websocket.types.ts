@@ -41,6 +41,8 @@ export interface RoundResolvedMessage {
     setterLanded: boolean;
     receiverLanded: boolean;
     letterAssignedToUsername: string | null;
+    p1Letters: number;
+    p2Letters: number;
     timestamp: number;
 }
 

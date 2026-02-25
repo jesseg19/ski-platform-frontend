@@ -12,8 +12,8 @@ interface GameTrick {
     setterUsername: string;
     receiverId: number;
     receiverUsername: string;
-    setterLanded: boolean;
-    receiverLanded: boolean;
+    setterLanded: boolean | null;
+    receiverLanded: boolean | null;
     letterAssignedToId: number | null;
     letterAssignedToUsername: string | null;
     trickDetails: string;

@@ -1,4 +1,4 @@
-export type GameStatus = 'playing' | 'gameOver' | 'pending';
+export type GameStatus = 'playing' | 'gameOver' | 'pending' | 'completed' | 'lastTry';
 export type PlayerAction = 'land' | 'fail';
 
 export interface GamePlayer {
@@ -9,13 +9,14 @@ export interface GamePlayer {
 }
 
 export interface GameTrick {
+    id: number;
     turnNumber: number;
     setterId: number;
     setterUsername: string;
     receiverId: number;
     receiverUsername: string;
-    setterLanded: boolean;
-    receiverLanded: boolean;
+    setterLanded: boolean | null
+    receiverLanded: boolean | null
     letterAssignedToId: number | null;
     letterAssignedToUsername: string | null;
     trickDetails: string;

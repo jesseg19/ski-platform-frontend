@@ -175,6 +175,7 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
     const [defaultTrick, setDefaultTrick] = useState<string | null>(null);
     const [customTrick, setCustomTrick] = useState("");
     const [spinInDisabled, setSpinInDisabled] = useState(false);
+    const [trickLine, setTrickLine] = useState("");
 
     const [isListening, setIsListening] = useState(false);
     const scrollViewRef = useRef<ScrollView>(null);
@@ -259,10 +260,6 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
     useSpeechRecognitionEvent("end", () => {
         setIsListening(false);
     });
-
-
-
-
 
 
     useEffect(() => {
@@ -351,9 +348,9 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
     const getPreviewTrick = (): string => {
         switch (mode) {
             case 'default':
-                return defaultTrick || "Select a default trick";
+                return (trickLine ? trickLine + ", " : "") + defaultTrick || "Select a default trick";
             case 'custom':
-                return customTrick || "Type a custom trick";
+                return (trickLine ? trickLine + ", " : "") + customTrick || "Type a custom trick";
             case 'builder':
                 if (trickType === 'jump') {
                     const { takeOffVariation, stance, direction, numberOfFlips, axis, degreeOfRotation, grab, landingVariation } = jumpTrick;
@@ -367,8 +364,8 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                         grab,
                         landingVariation
                     ].filter(Boolean);
-                    if (parts.length === 0) return "Build your jump trick...";
-                    return parts.join(' ');
+                    if (parts.length === 0 && !trickLine) return "Build your jump trick...";
+                    return (trickLine ? trickLine + ", " : "") + parts.join(' ');
                 } else {
                     const { stance, direction, takeoff, takeOffVariation, spinIn, swaps, spinOutType, spinOutSpin, landingVariation } = railTrick;
                     const parts = [
@@ -382,12 +379,15 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                         (spinOutType === 'Backside' || spinOutType === 'Frontside') ? spinOutSpin : null,
                         landingVariation
                     ].filter(Boolean);
-                    if (parts.length === 0) return "Build your rail trick...";
-                    return parts.join(' ');
+                    if (parts.length === 0 && !trickLine) return "Build your rail trick...";
+                    return (trickLine ? trickLine + ", " : "") + parts.join(' ');
                 }
+
             default:
                 return "Build your trick...";
         }
+
+
     };
 
     const handleCallTrick = () => {
@@ -400,17 +400,11 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
         } else if (mode === 'builder') {
             if (trickType === 'jump') {
                 const { axis, degreeOfRotation, grab, numberOfFlips } = jumpTrick;
-                if (!axis || !degreeOfRotation || !grab) {
-                    Alert.alert('Incomplete Trick', 'Please select an Axis, Degree of Rotation, and Grab.'); return;
-                }
-                if (axis !== 'On Axis' && !numberOfFlips) {
-                    Alert.alert('Incomplete Trick', 'Please select the number of flips for off-axis tricks.'); return;
+                if (!axis || !degreeOfRotation) {
+                    Alert.alert('Incomplete Trick', 'Please select an Axis and Degree of Rotation.'); return;
                 }
             } else {
                 const { stance, direction, takeoff, spinIn, swaps, spinOutType } = railTrick;
-                if (!stance || !direction || !takeoff) {
-                    Alert.alert('Incomplete Trick', 'Please fill out the "Stance & Takeoff" section.'); return;
-                }
                 if (!spinIn && swaps.length === 0 && !spinOutType) {
                     Alert.alert('Incomplete Trick', 'Please add a Spin In, Swap, or Spin Out.'); return;
                 }
@@ -423,7 +417,56 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
             return;
         }
 
-        onTrickCall(trickString);
+        onTrickCall(trickLine ? trickLine + ", " + trickString : trickString);
+    };
+
+    const handleAddTrick = () => {
+        let trickString = getPreviewTrick();
+        // if (mode === 'default' && defaultTrick) {
+        //     trickString = defaultTrick;
+        // } else if (mode === 'custom' && customTrick) {
+        //     trickString = customTrick;
+        // } else if (mode === 'builder') {
+        //     trickString = getPreviewTrick();
+        // }
+
+        console.log("Adding trick to line:", trickString);
+
+        if (!trickString || trickString.startsWith('Build your')) {
+            Alert.alert('No Trick', 'Please build, select, or type a trick to add.');
+            return;
+        }
+
+
+
+        setTrickLine(trickString);
+        //clear the old state of the trick so the user can build a new trick
+        if (trickType === 'jump') {
+            setJumpTrick({
+                axis: null,
+                degreeOfRotation: null,
+                grab: null,
+                numberOfFlips: "0",
+                stance: null,
+                direction: null,
+                takeOffVariation: null,
+                landingVariation: null
+            });
+        } else {
+            setRailTrick({
+                stance: null,
+                direction: null,
+                takeoff: null,
+                spinIn: null,
+                swaps: [],
+                spinOutType: null,
+                spinOutSpin: null,
+                landingVariation: null,
+                takeOffVariation: null,
+            });
+        }
+        console.log("Current trick line:", trickLine);
+        trickString = "";
     };
 
     // --- RENDER ---
@@ -432,7 +475,7 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
             <View style={modalStyles.centeredView}>
                 <ThemedView style={modalStyles.modalView}>
 
-                    <TouchableOpacity style={modalStyles.closeButton} onPress={onClose}>
+                    <TouchableOpacity style={modalStyles.closeButton} onPress={() => { onClose(); setTrickLine(""); }}>
                         <AntDesign name="close-circle" size={30} color={Theme.darkText} />
                     </TouchableOpacity>
 
@@ -630,8 +673,8 @@ export const TrickCallModal: React.FC<TrickCallModalProps> = ({ isVisible, onClo
                     </View>
 
                     <View style={modalStyles.buttonContainer}>
-                        <CustomButton title="Cancel" onPress={onClose} isPrimary={false} style={{ width: '30%', backgroundColor: Theme.darkText, borderColor: Theme.darkText, borderWidth: 1 }} />
-                        <CustomButton title="SET TRICK" onPress={handleCallTrick} isPrimary={true} style={{ width: '65%' }} />
+                        <CustomButton title="SET TRICK" onPress={handleCallTrick} isPrimary={true} style={{ width: '45%', backgroundColor: 'black' }} />
+                        <CustomButton title="ADD TRICKS" onPress={handleAddTrick} isPrimary={true} style={{ width: '45%' }} />
                     </View>
 
                 </ThemedView>

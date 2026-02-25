@@ -1,288 +1,155 @@
 import { useAuth } from "@/auth/AuthContext";
 import api from "@/auth/axios";
-import { gameSyncService } from "@/services/GameSyncService";
-import { localGameDB } from "@/services/LocalGameDatabase";
-import { calculateForceLetterPayload } from "@/services/SharedGameLogic";
-import { GameStateContext, SyncUtils, WebSocketContext } from "@/types/hooks.types";
-import { MAX_LETTERS, isLastTry } from "@/utils/gameHelpers";
+import { GameStateContext } from "@/types/hooks.types";
 import { useCallback, useRef } from "react";
 import { Alert } from "react-native";
 
-interface UseGameLogicReturn {
-    saveRound: (
-        gameId: number,
-        setter: string,
-        trick: string,
-        setterLanded: boolean | null,
-        receiverLanded: boolean | null,
-        letterGivenTo: string | null
-    ) => Promise<void>;
-    resolveRound: (setterLanded: boolean, receiverLanded: boolean) => Promise<void>;
-    handleLastTryAction: (action: 'land' | 'fail') => Promise<void>;
-    addLetterToPlayer: (player: string) => void;
-    isProcessingRound: React.RefObject<boolean>;
-    lastProcessedRoundKey: React.RefObject<string | null>;
-}
-
 export const useGameLogic = (
     gameState: GameStateContext,
-    wsContext: WebSocketContext,
-    syncUtils: SyncUtils
-): UseGameLogicReturn => {
+    isOnline: boolean,
+    publishTrickCall: (gameId: number, setter: string, trick: string) => void,
+    publishPlayerAction: (gameId: number, userId: number, action: 'land' | 'fail') => void,
+    onGameStateUpdate: () => Promise<void>
+) => {
     const { user } = useAuth();
-    const isProcessingRound = useRef(false);
-    const lastProcessedRoundKey = useRef<string | null>(null);
+    // We keep this to prevent rapid-fire taps, but the server is the source of truth
+    const isProcessing = useRef(false);
 
-    const addLetterToPlayer = useCallback((player: string) => {
-        if (gameState.gameId < 0) return;
-        if (gameState.gameStatus === 'gameOver') return;
-
-        const { setterLanded, receiverLanded } = calculateForceLetterPayload(
-            gameState.p1Username,
-            gameState.p2Username,
-            gameState.whosSet,
-            player
-        );
-        gameState.setCurrentMessage("Letter added, trick skipped");
-        saveRound(
-            gameState.gameId,
-            gameState.whosSet,
-            'Letter added without trick',
-            setterLanded,
-            receiverLanded,
-            player
-        );
-    }, [gameState.gameId, gameState.p1Username, gameState.p2Username, gameState.whosSet]);
-
-    const saveRound = useCallback(async (
-        gameId: number,
-        setter: string,
-        trick: string,
-        setterLanded: boolean | null,
-        receiverLanded: boolean | null,
-        letterGivenTo: string | null
-    ) => {
-        const receiverName = setter === gameState.p1Username ? gameState.p2Username : gameState.p1Username;
-        const roundNumToSave = gameState.currentRoundNumber.current;
-
-        // Check for game over
-        if (letterGivenTo === gameState.p1Username && gameState.p1Letters === MAX_LETTERS - 1) {
-            gameState.setGameStatus('gameOver');
-            gameState.setCurrentMessage(`GAME OVER! ${gameState.p2Username} WINS!`);
-        }
-        if (letterGivenTo === gameState.p2Username && gameState.p2Letters === MAX_LETTERS - 1) {
-            gameState.setGameStatus('gameOver');
-            gameState.setCurrentMessage(`GAME OVER! ${gameState.p1Username} WINS!`);
-        }
-
+    /**
+     * Called by the setter to define the trick.
+     */
+    const setTrick = useCallback(async (gameId: number, setterUsername: string, trickDetails: string) => {
         try {
-            if (wsContext.isOnline) {
-                try {
-                    await api.post(`/api/games/${gameId}/resolveRound`, {
-                        setterUsername: setter,
-                        receiverUsername: receiverName,
-                        trickDetails: trick,
-                        setterLanded: setterLanded,
-                        receiverLanded: receiverLanded,
-                        letterAssignToUsername: letterGivenTo,
-                        inputByUsername: user?.username || gameState.p1Username,
-                        clientTimestamp: Date.now(),
-                    });
+            // Update UI immediately for responsiveness
+            gameState.setCalledTrick(trickDetails);
 
-                    console.log(`Round ${roundNumToSave} synced to server`);
-
-                    const unsyncedActions = await localGameDB.getUnsyncedActions(gameId);
-                    if (unsyncedActions.length > 0) {
-                        const lastAction = unsyncedActions[unsyncedActions.length - 1];
-                        if (lastAction.id) {
-                            await localGameDB.markActionSynced(lastAction.id);
-                        }
-                    }
-                } catch (error: any) {
-                    if (error.response?.status === 200 || error.response?.data === "Round already resolved") {
-                        console.log("Round already resolved");
-                    } else {
-                        console.error("Failed to sync round:", error);
-                        await gameSyncService.saveActionLocally(
-                            gameId, roundNumToSave, setter, receiverName,
-                            trick, setterLanded, receiverLanded, letterGivenTo,
-                            user?.username || gameState.p1Username
-                        );
-                    }
-                }
-            } else {
-                await gameSyncService.saveActionLocally(
-                    gameId, roundNumToSave, setter, receiverName,
-                    trick, setterLanded, receiverLanded, letterGivenTo,
-                    user?.username || gameState.p1Username
-                );
-            }
-
-            gameState.currentRoundNumber.current += 1;
-
-            // Update letter count locally
-            if (letterGivenTo) {
-                let newCount = 0;
-                let userId = 0;
-
-                if (letterGivenTo === gameState.p1Username && gameState.p1Letters < MAX_LETTERS) {
-                    newCount = gameState.p1Letters + 1;
-                    userId = gameState.p1User?.userId || 0;
-                    gameState.setP1Letters(newCount);
-                } else if (letterGivenTo === gameState.p2Username && gameState.p2Letters < MAX_LETTERS) {
-                    newCount = gameState.p2Letters + 1;
-                    userId = gameState.p2User?.userId || 0;
-                    gameState.setP2Letters(newCount);
-                }
-
-                if (wsContext.isOnline && userId > 0) {
-                    wsContext.publishLetterUpdate(gameId, userId, letterGivenTo, newCount);
-                }
+            if (isOnline) {
+                await api.post(`/api/games/${gameId}/setTrick`, {
+                    setterUsername,
+                    trickDetails
+                });
+                // Broadcast to opponent via WS for immediate UI sync
+                publishTrickCall(gameId, setterUsername, trickDetails);
             }
         } catch (error) {
-            console.error("Failed to save round:", error);
-            Alert.alert("Error", "Failed to save game progress.");
+            console.error("Error setting trick:", error);
+            Alert.alert("Error", "Failed to set trick. Please try again.");
         }
-    }, [gameState, wsContext, user?.username]);
+    }, [isOnline, publishTrickCall, gameState]);
 
-    const resolveRound = useCallback(async (setterLanded: boolean, receiverLanded: boolean) => {
-        const roundKey = `${gameState.gameId}-${gameState.currentRoundNumber.current}-${gameState.calledTrick}-${setterLanded}-${receiverLanded}`;
+    /**
+     * Called when either player lands or falls. 
+     * The backend will resolve the round once both players have submitted.
+     */
+    const submitResult = useCallback(async (gameId: number, trickId: number, landed: boolean) => {
+        if (isProcessing.current) return;
+        isProcessing.current = true;
 
-        if (isProcessingRound.current || roundKey === lastProcessedRoundKey.current) {
-            console.log('Round already being processed');
+        try {
+            if (isOnline) {
+                console.log(`Submitting action to DB useGameLogic: user ${user?.username}, trickId ${trickId}, Landed: ${landed}`);
+
+                await api.post(`/api/games/${gameId}/submitAction`, {
+                    user: user?.id,
+                    trickId,
+                    landed
+                });
+
+                // Inform the opponent so their UI can show "Opponent has moved"
+                publishPlayerAction(gameId, user?.id || 0, landed ? 'land' : 'fail');
+            }
+        } catch (error) {
+            console.error("Error submitting result:", error);
+            Alert.alert("Error", "Failed to submit result.");
+        } finally {
+            // Short timeout to prevent double-taps
+            setTimeout(() => { isProcessing.current = false; }, 500);
+        }
+    }, [isOnline, publishPlayerAction, user]);
+
+    /**
+     * Refactored to use the same logic: just tell the server what happened.
+     */
+    const handleLastTryAction = useCallback(async (action: 'land' | 'fail') => {
+        const currentTrick = gameState.tricks[gameState.tricks.length - 1];
+        if (!currentTrick) return;
+
+        // In SKI, a "last try" is just another submission of a result
+        // but triggered by a specific UI state.
+        await submitResult(gameState.gameId, currentTrick.id, action === 'land');
+    }, [gameState.tricks, gameState.gameId, submitResult]);
+
+    const addLetterToPlayer = useCallback(async (playerToReceiveLetter: string) => {
+        if (gameState.gameId < 0 || gameState.gameStatus === 'gameOver') return;
+
+        //  Identify roles and landing status to force the letter
+        // If we want 'playerToReceiveLetter' to get the letter:
+        // Case A: Setter is the one getting the letter -> Setter failed, Receiver landed.
+        // Case B: Receiver is the one getting the letter -> Setter landed, Receiver failed.
+        const isSetterGettingLetter = playerToReceiveLetter === gameState.whosSet;
+        const setterLanded = !isSetterGettingLetter;
+        const receiverLanded = isSetterGettingLetter;
+
+        const setterUser = gameState.whosSet === gameState.p1Username ? gameState.p1User : gameState.p2User;
+        const receiverUser = gameState.whosSet === gameState.p1Username ? gameState.p2User : gameState.p1User;
+
+        if (!isOnline) {
+            // Handle offline logic or Alert user that manual letters require sync
             return;
         }
 
-        isProcessingRound.current = true;
-        lastProcessedRoundKey.current = roundKey;
-
         try {
-            let playerWhoGotLetter: string | null = null;
-            const receiverName = gameState.whosSet === gameState.p1Username ? gameState.p2Username : gameState.p1Username;
-            const currentTrick = gameState.calledTrick;
+            // Set the "Auto-Letter" Trick
+            const trickResponse = await api.post(`/api/games/${gameState.gameId}/setTrick`, {
+                setterUsername: gameState.whosSet,
+                trickDetails: "Manual Letter Added"
+            });
 
-            gameState.setP1Action(null);
-            gameState.setP2Action(null);
+            // We need the trickId from the state or response to submit actions
+            // Assuming your getGameState returns the latest trick just created:
+            const updatedState = await api.get(`/api/games/${gameState.gameId}`);
+            const currentTrickId = updatedState.data.tricks[updatedState.data.tricks.length - 1].id;
 
-            // Both land or both fail
-            if (setterLanded === receiverLanded) {
-                playerWhoGotLetter = null;
-                await saveRound(gameState.gameId, gameState.whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
+            //  Submit landing results for both players to trigger finalizeRoundLogic
+            await api.post(`/api/games/${gameState.gameId}/submitAction`, {
+                trickId: currentTrickId,
+                userId: setterUser?.userId,
+                landed: setterLanded
+            });
 
-                if (!setterLanded) {
-                    gameState.setWhosSet(receiverName);
-                    gameState.setCurrentMessage(`Both missed. ${receiverName}'s set now.`);
-                } else {
-                    gameState.setCurrentMessage(`Both landed! Game continues.`);
-                }
-                gameState.setCalledTrick("Awaiting set call...");
-            }
-            // Setter lands, receiver fails
-            else if (setterLanded && !receiverLanded) {
-                const receiverLetters = receiverName === gameState.p1Username ? gameState.p1Letters : gameState.p2Letters;
+            await api.post(`/api/games/${gameState.gameId}/submitAction`, {
+                trickId: currentTrickId,
+                userId: receiverUser?.userId,
+                landed: receiverLanded
+            });
 
-                if (!isLastTry(receiverLetters)) {
-                    playerWhoGotLetter = receiverName;
-                    await saveRound(gameState.gameId, gameState.whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
-                    gameState.setCurrentMessage(`${gameState.whosSet} landed! ${receiverName} gets a letter.`);
-                    gameState.setCalledTrick("Awaiting set call...");
-                } else {
-                    gameState.setLastTryPlayer(receiverName);
-                    const lastTryMsg = `${receiverName} missed! Last letter - 2 attempts.`;
-                    gameState.setCurrentMessage(lastTryMsg);
-                    if (wsContext.isOnline) {
-                        wsContext.publishLastTry(gameState.gameId, receiverName, lastTryMsg);
-                    }
-                    return;
-                }
-            }
-            // Setter fails, receiver lands
-            else if (!setterLanded && receiverLanded) {
-                const setterLetters = gameState.whosSet === gameState.p1Username ? gameState.p1Letters : gameState.p2Letters;
 
-                if (!isLastTry(setterLetters)) {
-                    playerWhoGotLetter = gameState.whosSet;
-                    await saveRound(gameState.gameId, gameState.whosSet, currentTrick, setterLanded, receiverLanded, playerWhoGotLetter);
-                    gameState.setWhosSet(receiverName);
-                    gameState.setCurrentMessage(`${gameState.whosSet} fell. ${receiverName}'s set now.`);
-                    gameState.setCalledTrick("Awaiting set call...");
-                } else {
-                    gameState.setLastTryPlayer(gameState.whosSet);
-                    const lastTryMsg = `${gameState.whosSet} fell! Last try for ${gameState.whosSet}.`;
-                    gameState.setCurrentMessage(lastTryMsg);
-                    if (wsContext.isOnline) {
-                        wsContext.publishLastTry(gameState.gameId, gameState.whosSet, lastTryMsg);
-                    }
-                    return;
-                }
-            }
-        } finally {
-            setTimeout(() => {
-                isProcessingRound.current = false;
-            }, 1000);
+            const finalStateResponse = await api.get(`/api/games/${gameState.gameId}`);
+            const data = finalStateResponse.data;
+
+            // Find the players in the response and update local state
+            data.players.forEach((p: any) => {
+                if (p.username === gameState.p1Username) gameState.setP1Letters(p.finalLetters);
+                if (p.username === gameState.p2Username) gameState.setP2Letters(p.finalLetters);
+            });
+
+            // Update the turn indicator (important for the S.K.I. rules switch)
+            const nextSetter = data.players.find((p: any) => p.userId === data.currentTurnUserId);
+            if (nextSetter) gameState.setWhosSet(nextSetter.username);
+
+            await onGameStateUpdate();
+            gameState.setCurrentMessage(`Letter added to ${playerToReceiveLetter}`);
+
+        } catch (error) {
+            console.error("Failed to manually add letter via trick:", error);
+            Alert.alert("Error", "Could not synchronize the manual letter.");
         }
-    }, [gameState, saveRound, wsContext]);
-
-    const handleLastTryAction = async (action: 'land' | 'fail') => {
-        const playerOnLastTry = gameState.lastTryPlayer;
-        if (!playerOnLastTry || isProcessingRound.current) return;
-
-        isProcessingRound.current = true;
-
-        try {
-            const currentSetter = gameState.whosSet;
-            const receiverName = currentSetter === gameState.p1Username ? gameState.p2Username : gameState.p1Username;
-
-            let setterLandedFinal: boolean | null = null;
-            let receiverLandedFinal: boolean = action === 'land';
-            const isSetterOnLastTry = playerOnLastTry === currentSetter;
-
-            if (isSetterOnLastTry) {
-                setterLandedFinal = action === 'land';
-                receiverLandedFinal = true;
-            } else {
-                setterLandedFinal = true;
-                receiverLandedFinal = action === 'land';
-            }
-
-            const trickToSave = `${gameState.calledTrick} (2nd Try)`;
-
-            if (action === 'land') {
-                await saveRound(gameState.gameId, currentSetter, trickToSave, setterLandedFinal, receiverLandedFinal, null);
-
-                gameState.setLastTryPlayer(null);
-                const newSetter = isSetterOnLastTry ? receiverName : currentSetter;
-                gameState.setWhosSet(newSetter);
-                gameState.setCurrentMessage(`${playerOnLastTry} survived! ${newSetter}'s set.`);
-                gameState.setCalledTrick("Awaiting set call...");
-            } else {
-                gameState.setGameStatus('gameOver');
-                const winnerName = playerOnLastTry === gameState.p1Username ? gameState.p2Username : gameState.p1Username;
-                const letterGivenTo = playerOnLastTry;
-
-                if (playerOnLastTry === gameState.p1Username) gameState.setP1Letters(MAX_LETTERS);
-                if (playerOnLastTry === gameState.p2Username) gameState.setP2Letters(MAX_LETTERS);
-
-                await saveRound(gameState.gameId, currentSetter, trickToSave, setterLandedFinal, receiverLandedFinal, letterGivenTo);
-
-                gameState.setLastTryPlayer(null);
-                gameState.setCurrentMessage(`GAME OVER! ${winnerName} WINS!`);
-                gameState.setCalledTrick("Game Over");
-            }
-        } finally {
-            setTimeout(() => {
-                isProcessingRound.current = false;
-            }, 500);
-        }
-    };
-
-
+    }, [gameState, isOnline]);
     return {
-        saveRound,
-        resolveRound,
+        setTrick,
+        submitResult,
         handleLastTryAction,
         addLetterToPlayer,
-        isProcessingRound,
-        lastProcessedRoundKey
+        isProcessing: isProcessing.current
     };
 };

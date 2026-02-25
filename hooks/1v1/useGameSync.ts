@@ -73,7 +73,6 @@ export const useGameSync = (
                 const response = await api.get(`/api/games/${gameId}`);
                 const serverState: ActiveGameProps = response.data;
 
-                console.log('Server state fetched:', serverState);
 
                 // Return the server state so it can be used to update local state
                 return serverState;

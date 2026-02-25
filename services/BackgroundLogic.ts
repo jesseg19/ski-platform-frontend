@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import { DIFFICULTY_LEVELS, generateRailTrick, generateTrick } from '../app/(tabs)/game/trickGenerator';
 
 const API_BASE_URL = "https://laps.api.jessegross.ca";
+// const API_BASE_URL = "http://192.168.139.1:5000";
 
 // --- 1. TRICK GENERATOR LOGIC ---
 

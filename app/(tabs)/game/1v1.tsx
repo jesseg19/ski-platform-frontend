@@ -127,7 +127,6 @@ export default function GameScreen1v1() {
   // Define what happens when WebSocket messages arrive
   const wsCallbacks: WebSocketSyncCallbacks = useMemo(() => ({
     onTrickCall: (trickDetails: string) => {
-      console.log('Setting trick from WebSocket:', trickDetails);
       gameState.setCalledTrick(trickDetails);
       saveCurrentGameState();
 
@@ -146,17 +145,19 @@ export default function GameScreen1v1() {
     },
 
     onLetterUpdate: (message) => {
-      console.log('Updating letters from WebSocket:', message);
       if (message.username === gameState.p1Username) {
         gameState.setP1Letters(message.newLetterCount);
       } else if (message.username === gameState.p2Username) {
         gameState.setP2Letters(message.newLetterCount);
       }
+
+      if (gameState.p1Letters >= 3 || gameState.p2Letters >= 3) {
+        gameState.setGameStatus('gameOver');
+      }
       saveCurrentGameState();
     },
 
     onRoundResolved: (message) => {
-      console.log('Round resolved from WebSocket:', message);
 
       gameState.setP1Action(null);
       gameState.setP2Action(null);
@@ -184,13 +185,11 @@ export default function GameScreen1v1() {
     },
 
     onLastTry: (message) => {
-      console.log('Last try from WebSocket:', message);
       gameState.setLastTryPlayer(message.playerOnLastTry);
       gameState.setCurrentMessage(message.message);
     },
 
     onSyncRequest: (message) => {
-      console.log('Sync request from WebSocket:', message);
 
       if (message.requester !== user?.username) {
         if (gameState.calledTrick && gameState.calledTrick !== 'Awaiting set call...') {
@@ -210,18 +209,19 @@ export default function GameScreen1v1() {
   }, [isOnline, gameState.gameId, requestGameState]);
 
   // Game logic hook
-  //debounce the sync game state to only sync when in hte forground, not continuisuly
-  const gameLogic = useGameLogic(
+  //debounce the sync game state to only sync when in the forground, not continuisuly
+  const {
+    setTrick,
+    submitResult,
+    addLetterToPlayer,
+    handleLastTryAction
+  } = useGameLogic(
     gameState,
-    { isOnline, publishLetterUpdate, publishLastTry },
-    {
-      saveLocalGameState: saveCurrentGameState,
-      syncGameState: async () => {
-        await syncGameState();
-      }
-    }
+    isOnline,
+    publishTrickCall,
+    publishPlayerAction,
+    saveCurrentGameState // Pass the save function here
   );
-
   // ==================== EFFECTS ====================
   // Stop notification when component unmounts or game ends
   useEffect(() => {
@@ -230,13 +230,26 @@ export default function GameScreen1v1() {
     };
   }, []);
 
+  //update data user may have missed from websocket with data from db
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // This ensures if the setter called a trick while you were in the 
+        // lock screen, the UI updates immediately upon unlock.
+        syncGameState();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [syncGameState]);
+
 
   // App state change handler (notifications)
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       const currentState = gameStateRef.current;
 
-      // 1. App moving from Foreground to Background
+      // App moving from Foreground to Background
       // We strictly check for 'active' -> 'background' transition
       if (
         appStateRef.current === 'active' &&
@@ -303,6 +316,7 @@ export default function GameScreen1v1() {
 
   // Challenge acceptance
   useEffect(() => {
+    console.log("Challenge Effect checking status:", sentChallengeStatus?.status);
     if (sentChallengeStatus && sentChallengeStatus.status === 'ACCEPTED') {
       gameState.setGameStatus('playing');
       console.log('Challenge accepted! Fetching game data...');
@@ -327,7 +341,7 @@ export default function GameScreen1v1() {
               const starterUser = gameData.players.find(p => p.userId === gameData.currentTurnUserId);
               const starter = starterUser ? starterUser.username : player1.username;
               gameState.setWhosSet(starter);
-
+              gameState.setGameStatus('playing');
               gameState.setCalledTrick('Awaiting set call...');
               gameState.setCurrentMessage(`Game started! ${starter} sets first.`);
               setNamesModalVisible(false);
@@ -362,21 +376,47 @@ export default function GameScreen1v1() {
           gameState.setCalledTrick(saved.calledTrick);
           gameState.setWhosSet(saved.whosSet);
         }
+        if (isOnline) {
+          // If we are back online, ALWAYS refresh the tricks from the source of truth
+          try {
+            const response = await api.get(`/api/games/${gameState.gameId}`);
+            const serverData = response.data;
+
+            gameState.setTricks(serverData.tricks);
+            const serverP1 = serverData.players.find((p: { username: string; }) => p.username === gameState.p1Username);
+            const serverP2 = serverData.players.find((p: { username: string; }) => p.username === gameState.p2Username);
+
+            if (serverP1) gameState.setP1Letters(serverP1.finalLetters);
+            if (serverP2) gameState.setP2Letters(serverP2.finalLetters);
+
+            const currentSetter = serverData.players.find((p: { userId: number; }) => p.userId === serverData.currentTurnUserId);
+            if (currentSetter) {
+              gameState.setWhosSet(currentSetter.username);
+            }
+            gameState.setP1Action(null);
+            gameState.setP2Action(null);
+
+            await saveCurrentGameState(); // Sync the local DB with this fresh server data
+          } catch (e) {
+            console.error("Failed to refresh state on return", e);
+          }
+        }
       }
+
     };
     loadStoredState();
-  }, [gameState.gameId, isOnline]); // Only re-run if gameId changes (when resuming a game)
+  }, [gameState.gameId, isOnline, gameState.p1Username, gameState.p2Username]);
 
 
   // Resolve round when both actions are set
-  useEffect(() => {
-    if (gameState.p1Action !== null && gameState.p2Action !== null && !gameLogic.isProcessingRound.current) {
-      const isCurrentSetter = gameState.whosSet === gameState.p1Username;
-      const setterLanded = isCurrentSetter ? (gameState.p1Action === 'land') : (gameState.p2Action === 'land');
-      const receiverLanded = isCurrentSetter ? (gameState.p2Action === 'land') : (gameState.p1Action === 'land');
-      gameLogic.resolveRound(setterLanded, receiverLanded);
-    }
-  }, [gameState.p1Action, gameState.p2Action, gameState.whosSet, gameState.p1Username, gameLogic]);
+  // useEffect(() => {
+  //   if (gameState.p1Action !== null && gameState.p2Action !== null && !gameLogic.isProcessingRound.current) {
+  //     const isCurrentSetter = gameState.whosSet === gameState.p1Username;
+  //     const setterLanded = isCurrentSetter ? (gameState.p1Action === 'land') : (gameState.p2Action === 'land');
+  //     const receiverLanded = isCurrentSetter ? (gameState.p2Action === 'land') : (gameState.p1Action === 'land');
+  //     // gameLogic.resolveRound(setterLanded, receiverLanded);
+  //   }
+  // }, [gameState.p1Action, gameState.p2Action, gameState.whosSet, gameState.p1Username, gameLogic]);
 
   // Debounced save state - auto-save when important values change
   useEffect(() => {
@@ -394,28 +434,71 @@ export default function GameScreen1v1() {
     saveCurrentGameState
   ]);
   // ==================== HANDLERS ====================
+  const handlePlayerAction = useCallback(async (player: GamePlayer, action: PlayerAction) => {
+    if (gameState.gameStatus === 'gameOver') return;
 
-  const handlePlayerAction = useCallback((player: GamePlayer, action: PlayerAction) => {
-    // Prevent actions if game is over
-    if (gameState.gameStatus === 'gameOver') {
+    // Update local UI state
+    const isLanded = action === 'land';
+    if (player.username === gameState.p1Username) {
+      gameState.setP1Action(action);
+    } else {
+      gameState.setP2Action(action);
+    }
+    if (gameState.gameStatus === 'lastTry') {
+      // If we are in lastTry, use the specific endpoint for redemption
+      await handleLastTryAction(isLanded ? 'land' : 'fail');
       return;
     }
 
-    // Immediately set local action
-    if (player.username === gameState.p1Username) {
-      gameState.setP1Action(prev => prev === null ? action : prev);
-    } else {
-      gameState.setP2Action(prev => prev === null ? action : prev);
-    }
-    // Publish to other player
+    // Submit to DB
     if (gameState.gameId > 0 && user && isOnline) {
-      publishPlayerAction(gameState.gameId, player.userId, action);
+      console.log(`Submitting action to DB: Player ${player.username} - ${action}`);
+      try {
+        // Find the current trick ID from your gameState.tricks array
+        // Usually the last trick in the list if it's the current round
+        const currentTrick = gameState.tricks[gameState.tricks.length - 1];
+        console.log('Current trick for action submission:', gameState.tricks);
+        if (currentTrick) {
+          console.log(`Submitting action to DB 1v1: user ${player.userId}, trickId ${currentTrick.id}, Landed: ${isLanded}`);
+          await api.post(`/api/games/${gameState.gameId}/submitAction`, {
+            userId: player.userId,
+            trickId: currentTrick.id,
+            landed: isLanded
+          });
+
+          // Inform the other player via WebSocket to show "Opponent has finished"
+          publishPlayerAction(gameState.gameId, player.userId, action);
+
+          //update game letters 
+          if (!isLanded) {
+            if (player.username === gameState.p1Username) {
+              gameState.setP1Letters(prev => prev + 1);
+              publishLetterUpdate(
+                gameState.gameId,
+                player.userId,
+                player.username,
+                gameState.p1Letters + 1
+              );
+            } else {
+              gameState.setP2Letters(prev => prev + 1);
+              publishLetterUpdate(
+                gameState.gameId,
+                player.userId,
+                player.username,
+                gameState.p2Letters + 1
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to record player action:', error);
+      }
     }
-  }, [gameState.p1Username, gameState.gameId, user, publishPlayerAction, isOnline, gameState.gameStatus]);
+  }, [gameState, user, isOnline, publishPlayerAction]);
 
   const getActionDisabled = useCallback((player: string) => {
     const action = player === gameState.p1Username ? gameState.p1Action : gameState.p2Action;
-    const isAwaitingSet = gameState.calledTrick.trim() === 'Awaiting set call...' || gameState.gameId < 0;
+    const isAwaitingSet = gameState.calledTrick === 'Awaiting set call...' || gameState.gameId < 0;
     const isGameOver = gameState.p1Letters === 3 || gameState.p2Letters === 3;
 
     return (
@@ -423,20 +506,37 @@ export default function GameScreen1v1() {
       gameState.lastTryPlayer !== null ||
       gameState.gameStatus !== 'playing' ||
       isAwaitingSet ||
-      gameLogic.isProcessingRound.current ||
+      // gameLogic.isProcessingRound.current ||
       isGameOver
     );
-  }, [gameState.p1Username, gameState.p1Action, gameState.p2Action, gameState.lastTryPlayer, gameState.gameStatus, gameState.calledTrick, gameState.gameId, gameLogic.isProcessingRound, gameState.p1Letters, gameState.p2Letters]);
+  }, [gameState.p1Username, gameState.p1Action, gameState.p2Action, gameState.lastTryPlayer, gameState.gameStatus, gameState.calledTrick, gameState.gameId, gameState.p1Letters, gameState.p2Letters]);
 
 
-  const handleTrickCall = useCallback((trickString: string) => {
+  const handleTrickCall = useCallback(async (trickString: string) => {
+    // Update local UI immediately for responsiveness
     gameState.setCalledTrick(trickString);
     setSetCallModalVisible(false);
+    await setTrick(gameState.gameId, user?.username || '', trickString);
     gameState.setCurrentMessage(`${gameState.whosSet} called: ${trickString}`);
-    saveCurrentGameState();
 
+    // Persist to DB (This creates the 'GameTrick' row with NULL results)
     if (gameState.gameId > 0 && isOnline) {
-      publishTrickCall(gameState.gameId, gameState.whosSet, trickString);
+      try {
+        // await api.post(`/api/games/${gameState.gameId}/setTrick`, {
+        //   setterUsername: gameState.whosSet,
+        //   trickDetails: trickString
+        // });
+
+        // Publish via WebSocket for the "Live" experience
+        publishTrickCall(gameState.gameId, gameState.whosSet, trickString);
+
+        await getAllGameTricks(false);
+        // Auto-save local state as backup
+        await saveCurrentGameState();
+      } catch (error) {
+        console.error('Failed to set trick in DB:', error);
+        Alert.alert("Error", "Could not save trick. Check your connection.");
+      }
     }
   }, [gameState, saveCurrentGameState, isOnline, publishTrickCall]);
 
@@ -454,6 +554,7 @@ export default function GameScreen1v1() {
           totalDistanceTraveled: totalDistance,
         });
 
+        gameState.setGameStatus('completed');
         await localGameDB.clearGameData(gameState.gameId);
 
         if (!didPlayerTravelSufficientDistance(totalDistance)) {
@@ -525,12 +626,14 @@ export default function GameScreen1v1() {
     }
   };
 
-  const getAllGameTricks = useCallback(async () => {
+  const getAllGameTricks = useCallback(async (fromBtn: boolean) => {
     if (gameState.gameId <= 0) return;
     try {
       const response = await api.get(`/api/profiles/${gameState.gameId}/tricks`);
       gameState.setTricks(response.data);
-      setGameTricksModalVisible(true);
+      if (fromBtn) {
+        setGameTricksModalVisible(true);
+      }
     } catch (error) {
       console.error('Failed to fetch game tricks:', error);
     }
@@ -551,7 +654,6 @@ export default function GameScreen1v1() {
     gameState.currentMessage,
     saveCurrentGameState
   ]);
-
   // ==================== RENDER ====================
   return (
     <ImageBackground
@@ -595,41 +697,35 @@ export default function GameScreen1v1() {
             currentMessage={gameState.currentMessage}
           />
 
-          <GameRoundActions
-            player={gameState.p1User || {
-              userId: 0,
-              username: gameState.p1Username,
-              finalLetters: gameState.p1Letters,
-              playerNumber: 1
-            }}
-            playerName={gameState.p1Username}
-            lettersEarned={gameState.p1Letters}
-            playerAction={gameState.p1Action}
-            lastTryPlayer={gameState.lastTryPlayer}
-            gameStatus={gameState.gameStatus}
-            getActionDisabled={getActionDisabled}
-            handlePlayerAction={handlePlayerAction}
-            handleLastTryAction={gameLogic.handleLastTryAction}
-            addLetterToPlayer={gameLogic.addLetterToPlayer}
-          />
+          {gameState.p1User && (
+            <GameRoundActions
+              player={gameState.p1User}
+              playerName={gameState.p1Username}
+              lettersEarned={gameState.p1Letters}
+              playerAction={gameState.p1Action}
+              lastTryPlayer={gameState.lastTryPlayer}
+              gameStatus={gameState.gameStatus}
+              getActionDisabled={getActionDisabled}
+              handlePlayerAction={handlePlayerAction}
+              handleLastTryAction={handleLastTryAction}
+              addLetterToPlayer={addLetterToPlayer}
+            />
+          )}
 
-          <GameRoundActions
-            player={gameState.p2User || {
-              userId: 0,
-              username: gameState.p2Username,
-              finalLetters: gameState.p2Letters,
-              playerNumber: 2
-            }}
-            playerName={gameState.p2Username}
-            lettersEarned={gameState.p2Letters}
-            playerAction={gameState.p2Action}
-            lastTryPlayer={gameState.lastTryPlayer}
-            gameStatus={gameState.gameStatus}
-            getActionDisabled={getActionDisabled}
-            handlePlayerAction={handlePlayerAction}
-            handleLastTryAction={gameLogic.handleLastTryAction}
-            addLetterToPlayer={gameLogic.addLetterToPlayer}
-          />
+          {gameState.p2User && (
+            <GameRoundActions
+              player={gameState.p2User}
+              playerName={gameState.p2Username}
+              lettersEarned={gameState.p2Letters}
+              playerAction={gameState.p2Action}
+              lastTryPlayer={gameState.lastTryPlayer}
+              gameStatus={gameState.gameStatus}
+              getActionDisabled={getActionDisabled}
+              handlePlayerAction={handlePlayerAction}
+              handleLastTryAction={handleLastTryAction}
+              addLetterToPlayer={addLetterToPlayer}
+            />
+          )}
 
           {!isOnline && gameState.gameId > 0 && (
             <ThemedView style={{ marginVertical: 10 }}>
@@ -655,7 +751,7 @@ export default function GameScreen1v1() {
             gameStatus={gameState.gameStatus}
             tricks={gameState.tricks}
             onRemoveLastTrick={handleRemoveLastTrick}
-            onViewTrickHistory={() => getAllGameTricks()}
+            onViewTrickHistory={() => getAllGameTricks(true)}
             onExit={() => setPauseOrQuitModalVisible(true)}
           />
         </ScrollView>

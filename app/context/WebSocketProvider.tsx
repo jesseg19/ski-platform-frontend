@@ -54,6 +54,8 @@ interface RoundResolvedMessage {
     receiverUsername: string;
     setterLanded: boolean;
     receiverLanded: boolean;
+    p1Letters: number;
+    p2Letters: number;
     letterAssignedToUsername: string | null;
     timestamp: number;
 }
@@ -270,6 +272,9 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
                     } else if ('requester' in data && 'gameId' in data && !('trickDetails' in data)) {
                         setSyncRequestMessage(data as SyncRequestMessage);
                     }
+                    // else if (data === 'LAST_TRY_TRIGGER') {
+                    //     setLastTryMessage({ gameId: gameId, playerOnLastTry: data.playerOnLastTry, message: data.message, timestamp: Date.now() });
+                    // }
 
                     if (callback) {
                         callback(data);
@@ -557,7 +562,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         lastTryMessage,
         publishGameStatus,
         syncRequestMessage,
-        requestGameState
+        requestGameState,
     }), [
         isConnected,
         isSending,
@@ -578,7 +583,7 @@ export const ChallengeProvider = ({ children }: ChallengeProviderProps) => {
         lastTryMessage,
         publishGameStatus,
         syncRequestMessage,
-        requestGameState
+        requestGameState,
     ]);
 
     return (

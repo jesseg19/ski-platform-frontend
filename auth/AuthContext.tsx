@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tokenRefreshed, setTokenRefreshed] = useState(0);
 
   const API_BASE_URL = 'https://laps.api.jessegross.ca'
+  // const API_BASE_URL = 'http://192.168.139.1:5000'
 
   const signOut = useCallback(async () => {
     await SecureStore.deleteItemAsync('userAccessToken');

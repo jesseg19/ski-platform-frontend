@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Theme } from '@/constants/theme';
+import { GameStatus } from '@/types/game.types';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { CustomButton } from './CustomButton';
@@ -12,7 +13,7 @@ interface GameRoundActionsProps {
     lettersEarned: number;
     playerAction: 'land' | 'fail' | null;
     lastTryPlayer: string | null;
-    gameStatus: 'playing' | 'gameOver' | 'pending';
+    gameStatus: GameStatus;
     getActionDisabled: (player: string) => boolean;
     handlePlayerAction: (player: GamePlayer, action: 'land' | 'fail') => void;
     handleLastTryAction: (action: 'land' | 'fail') => Promise<void>;
